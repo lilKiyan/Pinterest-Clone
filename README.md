@@ -1,36 +1,79 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+<div align="center">
 
-## Getting Started
+# 📌 Pinterest Clone
 
-First, run the development server:
+**یک کلون کامل و مدرن از Pinterest با Next.js 16، React 19، TypeScript، Prisma و Tailwind CSS**
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+![Version](https://img.shields.io/badge/version-1.0.0-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+![Next.js](https://img.shields.io/badge/Next.js-16-black)
+![React](https://img.shields.io/badge/React-19-61dafb)
+![Prisma](https://img.shields.io/badge/Prisma-6-2d3748)
+![Tailwind](https://img.shields.io/badge/Tailwind-4-38bdf8)
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+</div>
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## ✨ معرفی
 
-## Learn More
+این پروژه یک شبکه‌ی اجتماعی اشتراک‌گذاری تصویر (مانند Pinterest) است که با جدیدترین تکنولوژی‌های وب ساخته شده. کاربران می‌توانند پین‌های تصویری ایجاد کنند، آن‌ها را در بردهای شخصی ذخیره کنند، به یکدیگر دنبال کنند، لایک و کامنت بگذارند و پین‌های مرتبط را کشف کنند.
 
-To learn more about Next.js, take a look at the following resources:
+طراحی رابط کاربری کاملاً واکنش‌گرا و با الهام از Pinterest است و شامل حالت تاریک، انیمیشن‌های نرم و تجربه‌ی کاربری لذت‌بخش می‌باشد.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 🚀 ویژگی‌های کلیدی
 
-## Deploy on Vercel
+- 🔐 **احراز هویت کامل**: ثبت‌نام، ورود، خروج با JWT و کوکی httpOnly
+- 📌 **مدیریت پین‌ها**: ایجاد، ویرایش، حذف، نمایش با Infinite Scroll و Masonry Grid
+- 📁 **بردهای شخصی**: ساخت، ویرایش، حذف برد و ذخیره‌ی پین در چند برد
+- ❤️ **لایک و کامنت**: تعامل اجتماعی روی هر پین
+- 👥 **دنبال‌کردن کاربران**: فالو/آنفالو و نمایش آمار دنبال‌کننده‌ها
+- 🔍 **جستجوی زنده**: پیشنهاد نتایج هنگام تایپ و صفحه‌ی نتایج کامل
+- 🖼️ **آپلود تصویر**: ذخیره‌سازی فایل در `public/uploads` با اعتبارسنجی فرمت
+- 🌙 **طراحی مدرن**: Tailwind CSS، افکت‌های شیشه‌ای، انیمیشن‌های سفارشی
+- 📱 **کاملاً واکنش‌گرا**: از موبایل تا دسکتاپ
+- ⚡ **Infinite Scroll**: بارگذاری خودکار پین‌ها با IntersectionObserver
+- 🛡️ **امنیت**: محافظت از مسیرها با proxy، کنترل مالکیت منابع و رمزنگاری bcrypt
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 🛠️ تکنولوژی‌ها
+
+| دسته | تکنولوژی |
+|------|-----------|
+| فریم‌ورک | Next.js 16 (App Router) |
+| زبان | TypeScript |
+| UI | React 19 + Tailwind CSS 4 |
+| State Management | Zustand |
+| دیتابیس | SQLite + Prisma ORM 6 |
+| احراز هویت | JWT + bcryptjs |
+| آیکون‌ها | react-icons / lucide-react |
+| استایل | Tailwind + CSS Modules |
+
+---
+
+## 📸 اسکرین‌شات‌ها
+
+> (تصاویر پروژه را اینجا قرار دهید)
+
+| صفحه اصلی | جزئیات پین | پروفایل کاربر |
+|-----------|------------|---------------|
+| ![Home](screenshots/home.png) | ![Pin Detail](screenshots/pin-detail.png) | ![Profile](screenshots/profile.png) |
+
+---
+
+## 📦 نصب و راه‌اندازی
+
+### پیش‌نیازها
+
+- Node.js 18+
+- npm یا yarn
+
+### مراحل نصب
+
+1. **دریافت پروژه**
+   ```bash
+   git clone https://github.com/your-username/pinterest-clone.git
+   cd pinterest-clone
