@@ -53,17 +53,6 @@
 | استایل | Tailwind + CSS Modules |
 
 ---
-
-## 📸 اسکرین‌شات‌ها
-
-> (تصاویر پروژه را اینجا قرار دهید)
-
-| صفحه اصلی | جزئیات پین | پروفایل کاربر |
-|-----------|------------|---------------|
-| ![Home](screenshots/home.png) | ![Pin Detail](screenshots/pin-detail.png) | ![Profile](screenshots/profile.png) |
-
----
-
 ## 📦 نصب و راه‌اندازی
 
 ### پیش‌نیازها
