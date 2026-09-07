@@ -321,7 +321,7 @@ export default function SettingsPage() {
 
                     {/* ═══ کارت تغییر رمز عبور ═══ */}
                     <div className="relative bg-white/90 backdrop-blur-xl rounded-3xl shadow-xl shadow-gray-200/50 ring-1 ring-black/5 overflow-hidden transition-all duration-300 hover:shadow-2xl hover:shadow-indigo-100/40">
-                        <div className="h-1.5 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500" />
+                        <div className="h-1.5 bg-gradient-to-r from-red-500 via-rose-500 to-orange-400" />
 
                         <div className="p-6 md:p-8">
                             <div className="flex items-center justify-between gap-3 mb-2">

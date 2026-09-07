@@ -113,12 +113,12 @@ export default function ProfilePage() {
                         {user.name}
                     </h1>
 
-                    <div className="flex flex-wrap items-center justify-center gap-2.5 mt-3">
-                        <span className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm text-white/80 text-xs font-medium px-3 py-1.5 rounded-full ring-1 ring-white/10 transition-all duration-200 hover:bg-white/20 hover:scale-105 hover:ring-white/30 cursor-default">
-                            <FiAtSign className="w-3 h-3" /> {user.username}
+                    <div className="flex flex-col md:flex-row items-center justify-center gap-2.5 mt-3">
+                        <span className="flex items-center gap-1 items-center bg-white/10 backdrop-blur-sm text-white/80 text-xs font-medium px-3 py-1.5 rounded-full ring-1 ring-white/10 transition-all duration-200 hover:bg-white/20 hover:scale-105 hover:ring-white/30 cursor-default">
+                             <span>{user.username}</span><FiAtSign className="w-3 h-3" />
                         </span>
                         <span className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm text-white/80 text-xs font-medium px-3 py-1.5 rounded-full ring-1 ring-white/10 transition-all duration-200 hover:bg-white/20 hover:scale-105 hover:ring-white/30 cursor-default">
-                            <FiMail className="w-3 h-3" /> {user.email}
+                             {user.email}<FiMail className="w-3 h-3" />
                         </span>
                     </div>
 
@@ -195,6 +195,7 @@ export default function ProfilePage() {
                                         key={pin.id}
                                         pin={pin}
                                         onDeletePin={handlePinDeleted}
+                                        optionsRotationDefault={-125} 
                                     />
                                 ))}
                             </div>

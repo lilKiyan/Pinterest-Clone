@@ -108,7 +108,7 @@ export default function Home() {
       ) : (
         <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4 space-y-4">
           {pins.map((pin) => (
-            <PinCard key={pin.id} pin={pin} />
+            <PinCard key={pin.id} pin={pin} optionsRotationDefault={-80}  />
           ))}
         </div>
       )}

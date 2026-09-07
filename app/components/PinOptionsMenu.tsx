@@ -13,9 +13,18 @@ import {
 } from 'react-icons/fi'
 
 const RADIUS = 70
-const ROTATION_DEFAULT = -75
+
 const ROTATION_RIGHT_EDGE = -270
 const EDGE_THRESHOLD = 220
+
+const ALL_OPTIONS = [
+    { key: 'download', icon: FiDownload, label: 'دانلود', angle: 15, ownerOnly: false },
+    { key: 'share', icon: FiShare2, label: 'اشتراک‌گذاری', angle: 55, ownerOnly: false },
+    { key: 'hide', icon: FiEyeOff, label: 'مخفی کردن', angle: 100, ownerOnly: false },
+    { key: 'flag', icon: FiFlag, label: 'گزارش', angle: 145, ownerOnly: false },
+    { key: 'edit', icon: FiEdit2, label: 'ویرایش', angle: 190, ownerOnly: true },
+    { key: 'delete', icon: FiTrash2, label: 'حذف', angle: 235, ownerOnly: true },
+]
 
 const PUBLIC_OPTIONS = [
     { icon: FiDownload, label: 'دانلود', angle: 15 },
@@ -32,7 +41,6 @@ const OWNER_OPTIONS = [
 const STAGGER_MS = 55
 const BUTTON_SIZE = 36
 
-// استایل‌های هاور زیباتر برای هر نوع گزینه
 const getIconStyles = (label: string) => {
     if (label === 'حذف') {
         return 'text-red-600 hover:bg-gradient-to-br hover:from-red-100 hover:to-red-200 hover:shadow-[0_8px_25px_rgba(239,68,68,0.4)] hover:ring-2 hover:ring-red-300'
@@ -46,10 +54,19 @@ const getIconStyles = (label: string) => {
 type PinOptionsMenuProps = {
     onEdit?: () => void
     onDelete?: () => void
+    onDownload?: () => void
+    rotationDefault?: number
     isOwner?: boolean
+    excludedOptions?: string[]
 }
 
-const PinOptionsMenu = ({ onEdit, onDelete, isOwner = false }: PinOptionsMenuProps) => {
+const PinOptionsMenu = ({ onEdit, onDelete, onDownload, isOwner = false, rotationDefault = -90, excludedOptions }: PinOptionsMenuProps) => {
+    // ساخت لیست نهایی
+    const filteredOptions = ALL_OPTIONS.filter(option => {
+        if (option.ownerOnly && !isOwner) return false;   // گزینه‌های مالک فقط برای مالک
+        if (excludedOptions && excludedOptions.includes(option.key)) return false;   // حذف گزینه‌های مشخص‌شده
+        return true;
+    });
     const [isOpen, setIsOpen] = useState(false)
     const [visibleOpen, setVisibleOpen] = useState(false)
     const [anchor, setAnchor] = useState<{ top: number; left: number; rotation: number } | null>(null)
@@ -66,7 +83,7 @@ const PinOptionsMenu = ({ onEdit, onDelete, isOwner = false }: PinOptionsMenuPro
         if (!triggerRef.current) return
         const rect = triggerRef.current.getBoundingClientRect()
         const spaceRight = window.innerWidth - rect.right
-        const rotation = spaceRight < EDGE_THRESHOLD ? ROTATION_RIGHT_EDGE : ROTATION_DEFAULT
+        const rotation = spaceRight < EDGE_THRESHOLD ? ROTATION_RIGHT_EDGE : rotationDefault
 
         setAnchor({
             top: rect.top + rect.height / 2,
@@ -112,7 +129,6 @@ const PinOptionsMenu = ({ onEdit, onDelete, isOwner = false }: PinOptionsMenuPro
         }
     }, [isOpen])
 
-    // ساخت رشته transition کامل
     const getTransitionStyle = (index: number, isOpen: boolean, isVisible: boolean) => {
         const delay = isVisible ? index * STAGGER_MS : (allOptions.length - 1 - index) * STAGGER_MS
         const easing = isOpen ? 'cubic-bezier(0.34, 1.56, 0.64, 1)' : 'cubic-bezier(0.4, 0, 1, 1)'
@@ -150,6 +166,7 @@ const PinOptionsMenu = ({ onEdit, onDelete, isOwner = false }: PinOptionsMenuPro
                                 key={option.label}
                                 title={option.label}
                                 onClick={() => {
+                                    if (option.label === 'دانلود' && onDownload) onDownload()
                                     if (option.label === 'ویرایش' && onEdit) onEdit()
                                     if (option.label === 'حذف' && onDelete) onDelete()
                                     setIsOpen(false)

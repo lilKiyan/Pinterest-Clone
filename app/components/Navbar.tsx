@@ -266,7 +266,7 @@ const Navbar = () => {
 
   return (
     <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-gray-100">
-      <div className="flex items-center justify-between px-4 h-16 gap-4">
+      <div className="flex items-center justify-between px-3 md:px-4 h-14 md:h-16 gap-3 md:gap-4">
         {/* ═══ جستجوی لایو ═══ */}
         <div ref={searchContainerRef} className="relative flex-1 w-full min-w-0">
           <form
@@ -276,7 +276,7 @@ const Navbar = () => {
             }}
           >
             <div className="relative">
-              <FiSearch className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              <FiSearch className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
 
               <input
                 type="text"
@@ -285,11 +285,11 @@ const Navbar = () => {
                 onFocus={() => searchQuery.trim() && setShowSuggestions(true)}
                 onKeyDown={handleSearchKeyDown}
                 placeholder="جستجو"
-                className="w-full bg-gray-100 border border-transparent rounded-full pr-10 pl-10 py-2.5 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:border-red-300 focus:bg-white focus:ring-4 focus:ring-red-100 transition-all duration-200"
+                className="w-full bg-gray-100 border border-transparent rounded-full pr-9 pl-9 py-2 md:py-2.5 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:border-red-300 focus:bg-white focus:ring-4 focus:ring-red-100 transition-all duration-200"
               />
 
               {/* اسپینر یا دکمه پاک کردن داخل input */}
-              <div className="absolute left-3 top-1/2 -translate-y-1/2">
+              <div className="absolute left-2.5 top-1/2 -translate-y-1/2">
                 {isSearching ? (
                   <FiLoader className="w-4 h-4 text-red-500 animate-spin" />
                 ) : searchQuery ? (
@@ -375,29 +375,31 @@ const Navbar = () => {
         <div className="flex items-center gap-1.5">
           <div className="w-px h-6 bg-gray-200 mx-1 hidden sm:block" />
 
-          {/* ═══ پروفایل و دراپ‌داون (بدون تغییر) ═══ */}
+          {/* ═══ پروفایل و دراپ‌داون ═══ */}
           <div className="relative">
             <div className="flex items-center gap-0.5 pl-1 pr-0.5 py-0.5 rounded-full hover:bg-gray-100 transition-colors duration-200">
               <button
                 onClick={toggleDropdown}
-                className={`w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm cursor-pointer transition-transform hover:scale-105 active:scale-95 ${user
-                  ? 'bg-gradient-to-br from-red-500 to-red-600 ring-2 ring-white shadow-sm'
-                  : 'bg-gray-200 text-gray-500 ring-1 ring-gray-300 hover:bg-gray-300'
-                  }`}
+                className={`w-8 h-8 md:w-9 md:h-9 rounded-full flex items-center justify-center text-white font-bold text-sm cursor-pointer transition-transform hover:scale-105 active:scale-95 ${
+                  user
+                    ? 'bg-gradient-to-br from-red-500 to-red-600 ring-2 ring-white shadow-sm'
+                    : 'bg-gray-200 text-gray-500 ring-1 ring-gray-300 hover:bg-gray-300'
+                }`}
               >
                 {user ? (
-                  <span className="h-[18px]">{userInitial}</span>
+                  <span className="h-[16px] md:h-[18px]">{userInitial}</span>
                 ) : (
-                  <FiUser className="w-5 h-5" />
+                  <FiUser className="w-4 h-4 md:w-5 md:h-5" />
                 )}
               </button>
               <button
                 onClick={toggleDropdown}
-                className="w-7 h-7 rounded-full flex items-center justify-center text-gray-500 cursor-pointer transition-all duration-200 hover:bg-gray-100"
+                className="hidden md:flex w-7 h-7 rounded-full items-center justify-center text-gray-500 cursor-pointer transition-all duration-200 hover:bg-gray-100"
               >
                 <FiChevronDown
-                  className={`w-4 h-4 transition-transform duration-200 ${isDropdownVisible ? 'rotate-180' : ''
-                    }`}
+                  className={`w-4 h-4 transition-transform duration-200 ${
+                    isDropdownVisible ? 'rotate-180' : ''
+                  }`}
                 />
               </button>
             </div>
@@ -408,10 +410,11 @@ const Navbar = () => {
                 <div className="fixed inset-0 z-40" onClick={closeDropdown} />
 
                 <div
-                  className={`absolute left-0 mt-3 w-56 bg-white rounded-2xl shadow-2xl shadow-black/5 ring-1 ring-black/5 z-50 overflow-hidden origin-top-left transition-all ease-out ${isDropdownVisible
-                    ? 'opacity-100 scale-100 translate-y-0'
-                    : 'opacity-0 scale-95 -translate-y-2'
-                    }`}
+                  className={`absolute left-0 mt-3 w-52 md:w-56 bg-white rounded-2xl shadow-2xl shadow-black/5 ring-1 ring-black/5 z-50 overflow-hidden origin-top-left transition-all ease-out ${
+                    isDropdownVisible
+                      ? 'opacity-100 scale-100 translate-y-0'
+                      : 'opacity-0 scale-95 -translate-y-2'
+                  }`}
                   style={{ transitionDuration: `${DROPDOWN_ANIMATION_MS}ms` }}
                 >
                   <div className="px-4 py-3 border-b border-gray-50 bg-gray-50/50">
@@ -432,8 +435,9 @@ const Navbar = () => {
                             style={{
                               transitionDelay: isDropdownVisible ? `${index * STAGGER_MS}ms` : '0ms',
                             }}
-                            className={`group w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all no-underline ${isDropdownVisible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-2'
-                              }`}
+                            className={`group w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all no-underline ${
+                              isDropdownVisible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-2'
+                            }`}
                           >
                             <span className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center group-hover:bg-red-50 transition-colors">
                               <Icon className="w-4 h-4 text-gray-500 group-hover:text-red-600" />
@@ -453,8 +457,9 @@ const Navbar = () => {
                         style={{
                           transitionDelay: isDropdownVisible ? `${loggedInItems.length * STAGGER_MS}ms` : '0ms',
                         }}
-                        className={`group rounded-b-2xl w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-red-500 hover:bg-red-50 transition-all cursor-pointer ${isDropdownVisible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-2'
-                          }`}
+                        className={`group rounded-b-2xl w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-red-500 hover:bg-red-50 transition-all cursor-pointer ${
+                          isDropdownVisible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-2'
+                        }`}
                       >
                         <span className="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center group-hover:bg-red-100 transition-colors">
                           <FiLogOut className="w-4 h-4" />
@@ -475,9 +480,11 @@ const Navbar = () => {
                             style={{
                               transitionDelay: isDropdownVisible ? `${index * STAGGER_MS}ms` : '0ms',
                             }}
-                            className={`group w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all no-underline ${isLast ? 'rounded-b-2xl' : ''
-                              } ${isDropdownVisible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-2'
-                              }`}
+                            className={`group w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all no-underline ${
+                              isLast ? 'rounded-b-2xl' : ''
+                            } ${
+                              isDropdownVisible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-2'
+                            }`}
                           >
                             <span className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center group-hover:bg-red-50 transition-colors">
                               <Icon className="w-4 h-4 text-gray-500 group-hover:text-red-600" />
@@ -495,12 +502,12 @@ const Navbar = () => {
         </div>
       </div>
 
-      {/* ردیف بردها (بدون تغییر) */}
+      {/* ردیف بردها */}
       {boards.length > 0 && (
-        <div className="flex items-center gap-2 px-4 pb-3 pt-1 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <div className="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 pb-2.5 pt-1 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           <Link
             href="/"
-            className="flex-shrink-0 px-4 py-1.5 bg-red-600 text-white rounded-full text-sm font-medium hover:bg-red-700 shadow-sm shadow-red-100 transition-colors no-underline"
+            className="flex-shrink-0 px-3.5 md:px-4 py-1 md:py-1.5 bg-red-600 text-white rounded-full text-xs md:text-sm font-medium hover:bg-red-700 shadow-sm shadow-red-100 transition-colors no-underline"
           >
             همه
           </Link>
@@ -509,7 +516,7 @@ const Navbar = () => {
             <Link
               key={board.id}
               href={`/board/${board.id}`}
-              className="flex-shrink-0 px-4 py-1.5 bg-gray-100 text-gray-700 rounded-full text-sm font-medium hover:bg-gray-200 hover:-translate-y-0.5 transition-all duration-200 no-underline"
+              className="flex-shrink-0 px-3.5 md:px-4 py-1 md:py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs md:text-sm font-medium hover:bg-gray-200 hover:-translate-y-0.5 transition-all duration-200 no-underline"
             >
               {board.name}
             </Link>

@@ -1,30 +1,31 @@
 @import "tailwindcss";
 
 @font-face {
-    font-family: "Vazir";
-    src: url('../src/WebFonts/Vazir/Vazirmatn-Bold.woff2');
+  font-family: "Vazir";
+  src: url('../src/WebFonts/Vazir/Vazirmatn-Bold.woff2');
 }
 
 * {
-    font-family: 'Vazir';
+  font-family: 'Vazir';
 }
 
 @keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(-8px);
-    }
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
 
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes shine {
   from {
     transform: translateX(-100%);
   }
+
   to {
     transform: translateX(200%);
   }
@@ -51,3 +52,28 @@
   transform: translateX(200%);
 }
 
+@keyframes navPop {
+  0% {
+    transform: scale(0.7);
+  }
+
+  60% {
+    transform: scale(1.25);
+  }
+
+  100% {
+    transform: scale(1.1);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

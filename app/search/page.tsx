@@ -98,14 +98,6 @@ export default function SearchPage() {
                             </h1>
                         )}
                     </div>
-
-                    <Link
-                        href="/"
-                        className="shrink-0 self-start md:self-auto inline-flex items-center gap-2 text-gray-600 hover:text-red-600 transition-all bg-white/90 backdrop-blur-md px-5 py-2.5 rounded-full shadow-sm ring-1 ring-black/5 hover:ring-red-200 hover:shadow-lg hover:shadow-red-100/50 no-underline font-semibold text-sm group"
-                    >
-                        <FiArrowRight className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
-                        بازگشت به خانه
-                    </Link>
                 </div>
 
                 {/* ═══ نتایج ═══ */}

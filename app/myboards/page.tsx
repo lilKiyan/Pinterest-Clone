@@ -164,7 +164,7 @@ export default function MyBoardsPage() {
             ) : (
                 <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4 space-y-4">
                     {pins.map((pin) => (
-                        <PinCard key={pin.id} pin={pin} />
+                        <PinCard key={pin.id} pin={pin} optionsRotationDefault={-125} />
                     ))}
                 </div>
             )}
@@ -176,7 +176,7 @@ export default function MyBoardsPage() {
             <div className="flex justify-end mb-6">
                 <button
                     onClick={openCreateBoardModal}
-                    className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-full font-bold text-sm shadow-lg shadow-red-100 hover:shadow-red-200 active:scale-95 transition-all cursor-pointer"
+                    className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-full font-bold text-xs md:text-sm shadow-lg shadow-red-100 hover:shadow-red-200 active:scale-95 transition-all cursor-pointer"
                 >
                     <FiPlus className="text-lg" />
                     ساخت برد
@@ -209,20 +209,27 @@ export default function MyBoardsPage() {
         </div>
     )
 
+    const tabTitles: Record<Tab, string> = {
+        'my-pins': 'پین‌های من',
+        'saved-pins': 'پین‌های ذخیره‌شده',
+        'boards': 'بردهای من', // یا هر عنوان دلخواه برای تب سوم
+    }
+
     return (
-        <main className="min-h-screen bg-gradient-to-b from-gray-50 to-white px-4 md:px-5 py-8 md:py-10">
+        <main className="min-h-screen bg-gradient-to-b from-gray-50 to-white px-7 py-8 md:py-10">
             <div className="mx-auto">
-                <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight mb-8">
-                    ذخیره شده ها !
+                <h1 key={activeTab}
+                    className="text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight mb-8 animate-[fadeIn_0.3s_ease-out]">
+                    {tabTitles[activeTab]}
                 </h1>
 
                 {/* تب‌ها */}
-                <div className="inline-flex items-center gap-1 bg-gray-100 rounded-full p-1 mb-8">
+                <div className="inline-flex items-center gap-3 bg-gray-100 rounded-full p-1 mb-8">
                     <button
                         onClick={() => setActiveTab('my-pins')}
                         className={`flex items-center gap-2 px-4 sm:px-5 py-2 font-semibold text-sm rounded-full transition-all cursor-pointer ${activeTab === 'my-pins'
-                                ? 'bg-white text-gray-900 shadow-sm'
-                                : 'text-gray-500 hover:text-gray-800'
+                            ? 'bg-white text-gray-900 shadow-sm'
+                            : 'text-gray-500 hover:text-gray-800'
                             }`}
                     >
                         <FiGrid className="w-4 h-4" />
@@ -231,8 +238,8 @@ export default function MyBoardsPage() {
                     <button
                         onClick={() => setActiveTab('saved-pins')}
                         className={`flex items-center gap-2 px-4 sm:px-5 py-2 font-semibold text-sm rounded-full transition-all cursor-pointer ${activeTab === 'saved-pins'
-                                ? 'bg-white text-gray-900 shadow-sm'
-                                : 'text-gray-500 hover:text-gray-800'
+                            ? 'bg-white text-gray-900 shadow-sm'
+                            : 'text-gray-500 hover:text-gray-800'
                             }`}
                     >
                         <FiBookmark className="w-4 h-4" />
@@ -241,8 +248,8 @@ export default function MyBoardsPage() {
                     <button
                         onClick={() => setActiveTab('boards')}
                         className={`flex items-center gap-2 px-4 sm:px-5 py-2 font-semibold text-sm rounded-full transition-all cursor-pointer ${activeTab === 'boards'
-                                ? 'bg-white text-gray-900 shadow-sm'
-                                : 'text-gray-500 hover:text-gray-800'
+                            ? 'bg-white text-gray-900 shadow-sm'
+                            : 'text-gray-500 hover:text-gray-800'
                             }`}
                     >
                         <FiFolder className="w-4 h-4" />

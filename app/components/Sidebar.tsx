@@ -41,7 +41,7 @@ const Sidebar = () => {
     const isSettingsActive = isPathActive(pathname, '/settings')
 
     return (
-        <aside className="sticky top-0 h-screen shrink-0 w-20 bg-white shadow-[0_0_0_1px_rgba(0,0,0,0.05)] flex flex-col items-center py-4 z-50">
+        <aside className="hidden lg:flex sticky top-0 h-screen shrink-0 w-20 bg-white shadow-[0_0_0_1px_rgba(0,0,0,0.05)] flex-col items-center py-4 z-50">
             <Link href="/">
                 <div className="w-12 h-12 rounded-full bg-red-600 flex items-center justify-center text-white text-2xl font-bold mb-6 shadow-lg shadow-red-100 hover:scale-105 active:scale-95 transition-transform cursor-pointer">
                     <span className="h-[25px]">P</span>

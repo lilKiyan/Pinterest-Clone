@@ -117,8 +117,6 @@ const SaveToBoardDropdown = ({
     const savedBoardIds = new Set(savedBoards.map((sb) => sb.boardId))
 
     return (
-        // ریشه pointer-events-none: کلیک‌هایی که روی عناصر تعاملی نیستند
-        // به لینکِ تصویر زیرش پاس می‌شوند و به صفحه جزئیات می‌روند
         <div
             className="absolute top-3 left-3 right-3 flex items-center justify-between gap-2 pointer-events-none"
             ref={containerRef}
@@ -131,7 +129,7 @@ const SaveToBoardDropdown = ({
                         e.stopPropagation()
                         toggleDropdown()
                     }}
-                    className="group flex items-center gap-1.5 h-[38px] pl-3 pr-2.5 rounded-xl bg-black/55 hover:bg-black/70 backdrop-blur-md text-white text-sm font-semibold shadow-lg shadow-black/20 hover:shadow-black/30 transition-all duration-200 cursor-pointer"
+                    className="group hidden md:flex items-center gap-1.5 h-[38px] pl-3 pr-2.5 rounded-xl bg-black/55 hover:bg-black/70 backdrop-blur-md text-white text-sm font-semibold shadow-lg shadow-black/20 hover:shadow-black/30 transition-all duration-200 cursor-pointer"
                 >
                     <FiBookmark className="w-4 h-4 shrink-0 text-white/80 group-hover:scale-110 transition-transform" />
                     <span className="truncate max-w-[120px]">

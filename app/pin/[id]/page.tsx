@@ -317,7 +317,7 @@ export default function PinDetailPage() {
                     className="inline-flex cursor-pointer items-center gap-2 text-gray-600 hover:text-gray-900 transition-all mb-6 group bg-white/80 backdrop-blur-md px-5 py-2.5 rounded-full shadow-sm ring-1 ring-black/5 hover:shadow-md"
                 >
                     <FiArrowRight className="transition-transform group-hover:-translate-x-1" />
-                    <span className="font-medium text-sm">بازگشت</span>
+                    <span className="font-medium text-xs md:text-sm">بازگشت</span>
                 </button>
 
                 <div className="bg-white/90 backdrop-blur-xl rounded-[2rem] shadow-2xl ring-1 ring-black/5 overflow-hidden">
@@ -398,7 +398,7 @@ export default function PinDetailPage() {
 
                             {/* عنوان و توضیحات */}
                             <div className="px-6 py-5">
-                                <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900 leading-snug mb-2.5">
+                                <h1 className="text-xl md:text-3xl font-extrabold text-gray-900 leading-snug mb-2.5">
                                     {pin.title}
                                 </h1>
                                 {pin.description && (
@@ -725,7 +725,7 @@ export default function PinDetailPage() {
                     ) : (
                         <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4 space-y-4">
                             {relatedPins.map(p => (
-                                <PinCard key={p.id} pin={p} />
+                                <PinCard key={p.id} pin={p} optionsRotationDefault={-80} />
                             ))}
                         </div>
                     )}

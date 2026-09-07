@@ -18,9 +18,11 @@ type PinCardProps = {
     }
     onDeletePin?: (pinId: string) => void
     onRemoveFromBoard?: (pinId: string) => void
+    optionsRotationDefault?: number
+    menuExcluded?: string[]
 }
 
-const PinCard = ({ pin, onDeletePin, onRemoveFromBoard }: PinCardProps) => {
+const PinCard = ({ pin, onDeletePin, onRemoveFromBoard, optionsRotationDefault = -90, menuExcluded }: PinCardProps) => {
     const router = useRouter()
     const [boards, setBoards] = useState<Board[]>([])
     const [isLoadingBoards, setIsLoadingBoards] = useState(true)
@@ -79,6 +81,15 @@ const PinCard = ({ pin, onDeletePin, onRemoveFromBoard }: PinCardProps) => {
         } catch (error) {
             console.error(error)
         }
+    }
+
+    const handleDownload = () => {
+        const link = document.createElement('a')
+        link.href = pin.imageUrl
+        link.download = pin.title || 'pin' // نام فایل دانلودی
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
     }
 
     // ذخیره یا حذف پین از برد
@@ -208,7 +219,7 @@ const PinCard = ({ pin, onDeletePin, onRemoveFromBoard }: PinCardProps) => {
                 <div className="mt-1.5 px-1 flex items-center justify-between gap-2">
                     <p className="flex items-center gap-1.5 text-xs text-gray-500 truncate min-w-0">
                         <FiFolder className="w-3 h-3 shrink-0 text-gray-400" />
-                        <span className="truncate">
+                        <span className="truncate text-[10px] md:text-sm">
                             {savedBoards.length === 0
                                 ? 'بدون برد'
                                 : savedBoards.length === 1
@@ -219,7 +230,10 @@ const PinCard = ({ pin, onDeletePin, onRemoveFromBoard }: PinCardProps) => {
                     <PinOptionsMenu
                         onEdit={() => setIsEditModalOpen(true)}
                         onDelete={() => setIsDeleteModalOpen(true)}
+                        onDownload={handleDownload}
                         isOwner={pin.isOwner ?? false}
+                        rotationDefault={optionsRotationDefault}
+                        excludedOptions={menuExcluded}   
                     />
                 </div>
             </div>
