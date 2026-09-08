@@ -15,7 +15,7 @@ export default function RootLayout({
           <Sidebar />
           <div className="flex-1 min-w-0">
             <Navbar />
-            <main className="pb-20 lg:pb-0">{children}</main>
+            <main className="pb-10 lg:pb-0">{children}</main>
           </div>
         </div>
         <MobileNav />

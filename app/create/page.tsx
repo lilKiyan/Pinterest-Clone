@@ -96,14 +96,14 @@ export default function CreatePage() {
 
             {/* ── هدر ── */}
             <div className="flex items-center gap-4 mb-12">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-red-500 to-rose-600 shadow-lg shadow-red-200/60 flex items-center justify-center shrink-0">
-                    <FiUpload className="w-6 h-6 text-white" />
+                <div className="md:w-14 md:h-14 w-12 h-12 rounded-2xl bg-gradient-to-br from-red-500 to-rose-600 shadow-lg shadow-red-200/60 flex items-center justify-center shrink-0">
+                    <FiUpload className="md:w-6 md:h-6 w-5 h-5 text-white" />
                 </div>
                 <div>
-                    <h1 className="text-2xl md:text-3xl font-extrabold bg-gradient-to-l from-red-600 to-rose-600 bg-clip-text text-transparent tracking-tight">
+                    <h1 className="text-xl md:text-3xl font-extrabold bg-gradient-to-l from-red-600 to-rose-600 bg-clip-text text-transparent tracking-tight">
                         ساخت پین جدید
                     </h1>
-                    <p className="text-sm text-gray-500 mt-1">
+                    <p className="text-[10px] md:text-sm text-gray-500 mt-1">
                         یه تصویر انتخاب کن و یه عنوان جذاب براش بذار تا منتشر بشه
                     </p>
                 </div>
@@ -226,7 +226,7 @@ export default function CreatePage() {
                                             value={title}
                                             onChange={(e) => setTitle(e.target.value)}
                                             placeholder="مثلاً ایده طراحی اتاق خواب"
-                                            className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-4 py-3.5 text-gray-900 placeholder-gray-400 focus:outline-none focus:bg-white focus:border-red-300 focus:ring-4 focus:ring-red-50 transition-all duration-200"
+                                            className="w-full placeholder:text-sm bg-gray-50 border-2 border-transparent rounded-2xl px-4 py-3.5 text-gray-900 placeholder-gray-400 focus:outline-none focus:bg-white focus:border-red-300 focus:ring-4 focus:ring-red-50 transition-all duration-200"
                                         />
                                     </div>
 

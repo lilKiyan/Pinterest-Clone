@@ -44,6 +44,7 @@ export default function MyBoardsPage() {
 
     const fetchSavedPins = async () => {
         setLoadingSavedPins(true)
+
         try {
             const res = await fetch('/api/saves')
             if (!res.ok) throw new Error('خطا در دریافت پین‌های ذخیره‌شده')
@@ -98,10 +99,16 @@ export default function MyBoardsPage() {
     }
 
     const handleSaveBoard = async () => {
+        // 1. اعتبارسنجی: اگر نام برد خالی بود، کاری نکن
         if (!boardName.trim()) return
+
+        // 2. فعال کردن حالت لودینگ دکمه ذخیره
         setBoardSaving(true)
+
         try {
+            // 3. بررسی می‌کنیم که آیا در حال ویرایش هستیم یا ساخت جدید
             if (editingBoard) {
+                // حالت ویرایش: PATCH به آدرس با شناسه‌ی برد
                 const res = await fetch(`/api/boards/${editingBoard.id}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
@@ -109,6 +116,7 @@ export default function MyBoardsPage() {
                 })
                 if (!res.ok) throw new Error('خطا در ویرایش برد')
             } else {
+                // حالت ساخت: POST به آدرس کلی بردها
                 const res = await fetch('/api/boards', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -116,11 +124,15 @@ export default function MyBoardsPage() {
                 })
                 if (!res.ok) throw new Error('خطا در ساخت برد')
             }
+
+            // 4. بعد از موفقیت: بستن مودال و به‌روزرسانی لیست بردها
             closeBoardModal()
             fetchBoards()
         } catch (error) {
+            // 5. مدیریت خطا: نمایش در کنسول
             console.error(error)
         } finally {
+            // 6. غیرفعال کردن لودینگ در هر صورت (چه خطا چه موفق)
             setBoardSaving(false)
         }
     }

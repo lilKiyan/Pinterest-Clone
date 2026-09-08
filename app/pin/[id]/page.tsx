@@ -19,6 +19,7 @@ import {
     FiSend,
     FiLink2,
     FiUserPlus,
+    FiCheckCircle,
     FiGrid,
 } from 'react-icons/fi'
 
@@ -45,6 +46,12 @@ export default function PinDetailPage() {
 
     const [relatedPins, setRelatedPins] = useState<any[]>([])
     const [loadingRelated, setLoadingRelated] = useState(true)
+
+    //مودال تایید حذف پیام
+    const [commentToDelete, setCommentToDelete] = useState<any>(null)
+    const [isModalClosing, setIsModalClosing] = useState(false)
+
+    const [toast, setToast] = useState('')
 
     useEffect(() => {
         const fetchPin = async () => {
@@ -275,6 +282,67 @@ export default function PinDetailPage() {
         return new Date(date).toLocaleDateString('fa-IR')
     }
 
+    // باز کردن مودال حذف
+    const openDeleteCommentModal = (comment: any) => {
+        setCommentToDelete(comment)
+        setIsModalClosing(false)
+    }
+
+    // بستن مودال با انیمیشن
+    const closeDeleteCommentModal = () => {
+        setIsModalClosing(true)
+        setTimeout(() => {
+            setCommentToDelete(null)
+            setIsModalClosing(false)
+        }, 200) // مدت زمان انیمیشن خروج
+    }
+
+    // تأیید حذف
+    const confirmDeleteComment = async () => {
+        if (!commentToDelete) return
+        await handleDeleteComment(commentToDelete.id)
+        closeDeleteCommentModal()
+    }
+
+    const handleShare = async () => {
+        const url = window.location.href
+        const title = pin.title
+
+        if (navigator.share) {
+            try {
+                await navigator.share({ title, url })
+                return
+            } catch (err) {
+                // کاربر انصراف داده یا خطا
+                return
+            }
+        }
+
+        try {
+            if (navigator.clipboard && window.isSecureContext) {
+                await navigator.clipboard.writeText(url)
+            } else {
+                const textarea = document.createElement('textarea')
+                textarea.value = url
+                textarea.style.position = 'fixed'
+                textarea.style.opacity = '0'
+                document.body.appendChild(textarea)
+                textarea.focus()
+                textarea.select()
+                document.execCommand('copy')
+                document.body.removeChild(textarea)
+            }
+            showToast('لینک کپی شد !')
+        } catch (err) {
+            showToast('کپی لینک ناموفق بود')
+        }
+    }
+
+    const showToast = (message: string) => {
+        setToast(message)
+        setTimeout(() => setToast(''), 2000)
+    }
+
     if (loading) {
         return (
             <main dir="rtl" className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 via-white to-orange-50">
@@ -307,7 +375,7 @@ export default function PinDetailPage() {
     }
 
     return (
-        <main dir="rtl" className="relative min-h-screen overflow-hidden bg-gradient-to-br from-red-50/60 via-white to-orange-50/50 py-6 md:py-10 px-4">
+        <main dir="rtl" className="relative min-h-screen overflow-hidden bg-gradient-to-br from-red-50/60 via-white to-orange-50/50 py-6 md:py-10 px-2">
             <div className="absolute -top-32 -left-32 w-96 h-96 bg-red-100/50 rounded-full blur-3xl pointer-events-none" />
             <div className="absolute -bottom-32 -right-32 w-[28rem] h-[28rem] bg-orange-100/40 rounded-full blur-3xl pointer-events-none" />
 
@@ -378,11 +446,10 @@ export default function PinDetailPage() {
                                     <button
                                         onClick={handleFollow}
                                         disabled={followLoading}
-                                        className={`shrink-0 flex items-center gap-1.5 px-4 py-2.5 rounded-full font-semibold text-xs transition-all ${
-                                            isFollowed
-                                                ? 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                                : 'bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-200/70'
-                                        } ${followLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                        className={`shrink-0 flex items-center gap-1.5 px-4 py-2.5 rounded-full font-semibold text-xs transition-all ${isFollowed
+                                            ? 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                            : 'bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-200/70'
+                                            } ${followLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
                                     >
                                         {followLoading ? (
                                             <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
@@ -414,11 +481,10 @@ export default function PinDetailPage() {
                                     <button
                                         onClick={handleLike}
                                         title={isLiked ? 'حذف لایک' : 'لایک'}
-                                        className={`relative group flex items-center gap-2 px-4 py-2.5 rounded-full font-bold text-sm transition-all duration-300 cursor-pointer active:scale-95 ${
-                                            isLiked
-                                                ? 'bg-red-50 text-red-600 ring-1 ring-red-200'
-                                                : 'bg-gray-50 text-gray-600 ring-1 ring-gray-200 hover:bg-red-50 hover:text-red-600 hover:ring-red-200'
-                                        }`}
+                                        className={`relative group flex items-center gap-2 px-4 py-2.5 rounded-full font-bold text-sm transition-all duration-300 cursor-pointer active:scale-95 ${isLiked
+                                            ? 'bg-red-50 text-red-600 ring-1 ring-red-200'
+                                            : 'bg-gray-50 text-gray-600 ring-1 ring-gray-200 hover:bg-red-50 hover:text-red-600 hover:ring-red-200'
+                                            }`}
                                     >
                                         {isLiked && (
                                             <span key="burst" className="pointer-events-none absolute inset-0 flex items-center justify-center">
@@ -436,11 +502,10 @@ export default function PinDetailPage() {
                                         )}
                                         <FiHeart
                                             key={isLiked ? 'liked' : 'unliked'}
-                                            className={`w-[18px] h-[18px] transition-colors ${
-                                                isLiked
-                                                    ? 'text-red-600 fill-red-600 animate-[likePop_0.45s_ease-out]'
-                                                    : 'text-gray-400 group-hover:text-red-500'
-                                            }`}
+                                            className={`w-[18px] h-[18px] transition-colors ${isLiked
+                                                ? 'text-red-600 fill-red-600 animate-[likePop_0.45s_ease-out]'
+                                                : 'text-gray-400 group-hover:text-red-500'
+                                                }`}
                                         />
                                         <span className="tabular-nums">{totalLikes}</span>
                                     </button>
@@ -455,14 +520,7 @@ export default function PinDetailPage() {
 
                                     <button
                                         title="اشتراک‌گذاری"
-                                        onClick={() => {
-                                            const url = window.location.href
-                                            if (navigator.share) {
-                                                navigator.share({ title: pin.title, url }).catch(() => {})
-                                            } else {
-                                                navigator.clipboard?.writeText(url)
-                                            }
-                                        }}
+                                        onClick={handleShare}
                                         className="flex items-center gap-2 px-4 py-2.5 rounded-full font-bold text-sm bg-gray-50 text-gray-600 ring-1 ring-gray-200 hover:bg-blue-50 hover:text-blue-600 hover:ring-blue-200 transition-all duration-300 cursor-pointer active:scale-95"
                                     >
                                         <FiShare2 className="w-[18px] h-[18px] text-gray-400 group-hover:text-blue-500" />
@@ -477,8 +535,9 @@ export default function PinDetailPage() {
                             </div>
 
                             {/* ═══ بخش کامنت‌ها ═══ */}
-                            <div className="px-6 py-2 flex flex-col">
-                                <div className="flex items-center gap-2.5 mb-4">
+                            <div className="px-6 py-4 flex flex-col gap-4">
+                                {/* هدر */}
+                                <div className="flex items-center gap-2.5">
                                     <div className="w-8 h-8 rounded-xl bg-gray-50 ring-1 ring-gray-100 flex items-center justify-center shrink-0">
                                         <FiMessageCircle className="w-4 h-4 text-gray-500" />
                                     </div>
@@ -489,6 +548,7 @@ export default function PinDetailPage() {
                                     <div className="flex-1 h-px bg-gradient-to-l from-gray-100 to-transparent" />
                                 </div>
 
+                                {/* لیست کامنت‌ها */}
                                 {comments.length === 0 ? (
                                     <div className="text-center py-10">
                                         <div className="w-16 h-16 mx-auto mb-4 rounded-3xl bg-gradient-to-br from-gray-50 to-gray-100 ring-1 ring-gray-100 flex items-center justify-center rotate-3">
@@ -502,12 +562,12 @@ export default function PinDetailPage() {
                                         <div className="pointer-events-none absolute top-0 inset-x-0 h-8 bg-gradient-to-b from-white to-transparent z-10 rounded-t-2xl" />
                                         <div className="pointer-events-none absolute bottom-0 inset-x-0 h-8 bg-gradient-to-b from-transparent to-white z-10 rounded-b-2xl" />
 
-                                        <div className="space-y-2 max-h-[45vh] min-h-[120px] overflow-y-auto scroll-smooth px-1 py-2
-                                            [&::-webkit-scrollbar]:w-1.5
-                                            [&::-webkit-scrollbar-thumb]:bg-gray-200
-                                            [&::-webkit-scrollbar-thumb]:hover:bg-gray-300
-                                            [&::-webkit-scrollbar-thumb]:rounded-full
-                                            [&::-webkit-scrollbar-track]:bg-transparent">
+                                        <div className="space-y-2 max-h-[40vh] md:max-h-[50vh] overflow-y-auto scroll-smooth px-1 py-2
+                [&::-webkit-scrollbar]:w-1.5
+                [&::-webkit-scrollbar-thumb]:bg-gray-200
+                [&::-webkit-scrollbar-thumb]:hover:bg-gray-300
+                [&::-webkit-scrollbar-thumb]:rounded-full
+                [&::-webkit-scrollbar-track]:bg-transparent">
 
                                             {comments.map((comment: any, index: number) => {
                                                 const isMine = user && comment.userId === user.id
@@ -517,6 +577,7 @@ export default function PinDetailPage() {
                                                         className="group/comment flex items-start gap-3 p-2 rounded-2xl hover:bg-gray-50/70 mt-2 transition-all duration-200 animate-[commentIn_0.35s_ease-out_backwards]"
                                                         style={{ animationDelay: `${Math.min(index * 45, 400)}ms` }}
                                                     >
+                                                        {/* آواتار */}
                                                         <div className="w-9 h-9 shrink-0 rounded-full overflow-hidden bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center text-gray-600 text-sm font-bold ring-2 ring-white shadow-sm">
                                                             {comment.user?.avatar ? (
                                                                 <img src={comment.user.avatar} alt="" className="w-full h-full object-cover" />
@@ -525,16 +586,17 @@ export default function PinDetailPage() {
                                                             )}
                                                         </div>
 
+                                                        {/* بدنه */}
                                                         <div className="flex-1 min-w-0">
                                                             <div
-                                                                className={`rounded-2xl px-4 py-3 ring-1 transition-all duration-200 group-hover/comment:-translate-y-0.5 group-hover/comment:shadow-md group-hover/comment:shadow-gray-200/50 ${
-                                                                    isMine
-                                                                        ? 'bg-gradient-to-br from-red-50/80 to-rose-50/50 ring-red-100/80 group-hover/comment:ring-red-200/70'
-                                                                        : 'bg-gray-50/80 ring-gray-100 group-hover/comment:bg-white group-hover/comment:ring-gray-200'
-                                                                }`}
+                                                                className={`rounded-2xl px-4 py-3 ring-1 transition-all duration-200 ${isMine
+                                                                    ? 'bg-gradient-to-br from-red-50/80 to-rose-50/50 ring-red-100/80'
+                                                                    : 'bg-gray-50/80 ring-gray-100 group-hover/comment:bg-white group-hover/comment:ring-gray-200'
+                                                                    }`}
                                                             >
+                                                                {/* ردیف نام، زمان و دکمه حذف */}
                                                                 <div className="flex items-center gap-2 mb-1">
-                                                                    <span className={`text-[13px] font-extrabold truncate ${isMine ? 'text-red-700' : 'text-gray-900'}`}>
+                                                                    <span className={`text-[12px] font-extrabold truncate ${isMine ? 'text-red-700' : 'text-gray-900'}`}>
                                                                         {comment.user?.name || comment.user?.username || 'کاربر'}
                                                                     </span>
                                                                     {isMine && (
@@ -542,27 +604,29 @@ export default function PinDetailPage() {
                                                                             شما
                                                                         </span>
                                                                     )}
-                                                                    <span className="text-[11px] text-gray-400 shrink-0 ml-auto">
-                                                                        {timeAgo(comment.createdAt)}
+
+                                                                    {/* زمان + دکمه حذف در انتهای ردیف */}
+                                                                    <span className="ml-auto flex items-center gap-1.5 shrink-0">
+                                                                        <span className="text-[10px] text-gray-400">
+                                                                            {timeAgo(comment.createdAt)}
+                                                                        </span>
+                                                                        {isMine && (
+                                                                            <button
+                                                                                onClick={() => openDeleteCommentModal(comment)}
+                                                                                title="حذف کامنت"
+                                                                                aria-label="حذف کامنت"
+                                                                                className="w-6 h-6 rounded-md flex items-center justify-center text-gray-400 opacity-100 sm:opacity-0 sm:group-hover/comment:opacity-100 hover:text-red-600 hover:bg-red-50 transition-all duration-200 cursor-pointer active:scale-90"
+                                                                            >
+                                                                                <FiTrash2 className="w-3 h-3" />
+                                                                            </button>
+                                                                        )}
                                                                     </span>
                                                                 </div>
+
                                                                 <p className="text-sm text-gray-700 leading-relaxed break-words whitespace-pre-wrap">
                                                                     {comment.content}
                                                                 </p>
                                                             </div>
-
-                                                            {isMine && (
-                                                                <div className="flex items-center gap-1 mt-1 pr-2 opacity-0 group-hover/comment:opacity-100 translate-y-0.5 group-hover/comment:translate-y-0 transition-all duration-200">
-                                                                    <button
-                                                                        onClick={() => handleDeleteComment(comment.id)}
-                                                                        aria-label="حذف کامنت"
-                                                                        className="flex items-center gap-1.5 text-[11px] font-bold text-gray-400 hover:text-red-600 px-2 py-1 rounded-lg hover:bg-red-50 transition-all duration-200 cursor-pointer active:scale-90"
-                                                                    >
-                                                                        <FiTrash2 className="w-3 h-3" />
-                                                                        حذف
-                                                                    </button>
-                                                                </div>
-                                                            )}
                                                         </div>
                                                     </div>
                                                 )
@@ -571,7 +635,8 @@ export default function PinDetailPage() {
                                     </div>
                                 )}
 
-                                <div className="flex items-start gap-3 mb-2">
+                                {/* فرم افزودن دیدگاه */}
+                                <div className="flex items-start gap-3 mt-1">
                                     <div className="w-9 h-9 shrink-0 rounded-full overflow-hidden bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center text-white text-sm font-bold ring-2 ring-white shadow-md shadow-red-100">
                                         {user?.avatar ? (
                                             <img src={user.avatar} alt="" className="w-full h-full object-cover" />
@@ -592,11 +657,10 @@ export default function PinDetailPage() {
                                                     onClick={handleAddComment}
                                                     disabled={!newComment.trim()}
                                                     aria-label="ارسال کامنت"
-                                                    className={`h-8 px-3.5 rounded-full flex items-center gap-1.5 text-xs font-bold transition-all duration-200 cursor-pointer ${
-                                                        newComment.trim()
-                                                            ? 'bg-gradient-to-l from-red-500 to-rose-600 text-white shadow-md shadow-red-200 hover:shadow-lg hover:shadow-red-300/60 hover:brightness-105 active:scale-95'
-                                                            : 'bg-gray-200/80 text-gray-400 cursor-not-allowed'
-                                                    }`}
+                                                    className={`h-8 px-3.5 rounded-full flex items-center gap-1.5 text-xs font-bold transition-all duration-200 cursor-pointer ${newComment.trim()
+                                                        ? 'bg-gradient-to-l from-red-500 to-rose-600 text-white shadow-md shadow-red-200 hover:shadow-lg hover:shadow-red-300/60 hover:brightness-105 active:scale-95'
+                                                        : 'bg-gray-200/80 text-gray-400 cursor-not-allowed'
+                                                        }`}
                                                 >
                                                     ارسال
                                                     <FiSend className="w-3 h-3 -scale-x-100" />
@@ -624,11 +688,10 @@ export default function PinDetailPage() {
                             <div className="relative p-6 mt-auto bg-gradient-to-t from-gray-50/80 to-transparent">
                                 <button
                                     onClick={toggleSave}
-                                    className={`w-full flex items-center justify-between gap-2 px-4 py-4 rounded-2xl font-bold transition-all ${
-                                        savedBoards.length > 0
-                                            ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-lg shadow-red-300/50 hover:shadow-xl hover:shadow-red-300/60 hover:brightness-105'
-                                            : 'bg-gray-900 text-white shadow-lg shadow-gray-300/50 hover:bg-black hover:shadow-xl'
-                                    }`}
+                                    className={`w-full flex items-center justify-between gap-2 px-4 py-4 rounded-2xl font-bold transition-all ${savedBoards.length > 0
+                                        ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-lg shadow-red-300/50 hover:shadow-xl hover:shadow-red-300/60 hover:brightness-105'
+                                        : 'bg-gray-900 text-white shadow-lg shadow-gray-300/50 hover:bg-black hover:shadow-xl'
+                                        }`}
                                 >
                                     <span className="flex items-center gap-2.5">
                                         <FiBookmark className="w-5 h-5" />
@@ -673,11 +736,10 @@ export default function PinDetailPage() {
                                                         <button
                                                             key={board.id}
                                                             onClick={() => handleToggleBoard(board.id, board.name)}
-                                                            className={`w-full cursor-pointer flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-right ${
-                                                                isSaved
-                                                                    ? 'bg-red-50/80 text-red-700'
-                                                                    : 'hover:bg-gray-50'
-                                                            }`}
+                                                            className={`w-full cursor-pointer flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-right ${isSaved
+                                                                ? 'bg-red-50/80 text-red-700'
+                                                                : 'hover:bg-gray-50'
+                                                                }`}
                                                         >
                                                             <img
                                                                 src={board.thumbnail}
@@ -686,11 +748,10 @@ export default function PinDetailPage() {
                                                             />
                                                             <span className="flex-1 font-semibold text-sm truncate">{board.name}</span>
                                                             <span
-                                                                className={`w-6 h-6 shrink-0 rounded-full flex items-center justify-center transition-all ${
-                                                                    isSaved
-                                                                        ? 'bg-red-600 scale-100'
-                                                                        : 'bg-gray-200 scale-90 opacity-0 group-hover:opacity-100'
-                                                                }`}
+                                                                className={`w-6 h-6 shrink-0 rounded-full flex items-center justify-center transition-all ${isSaved
+                                                                    ? 'bg-red-600 scale-100'
+                                                                    : 'bg-gray-200 scale-90 opacity-0 group-hover:opacity-100'
+                                                                    }`}
                                                             >
                                                                 {isSaved && <FiCheck className="w-3.5 h-3.5 text-white" />}
                                                             </span>
@@ -731,6 +792,54 @@ export default function PinDetailPage() {
                     )}
                 </section>
             )}
+            {commentToDelete && (
+                <div
+                    className={`fixed inset-0 z-[150] flex items-center justify-center p-4 ${isModalClosing
+                        ? 'animate-[fadeOut_0.2s_ease-in]'
+                        : 'animate-[fadeIn_0.2s_ease-out]'
+                        }`}
+                >
+                    {/* بک‌دراپ */}
+                    <div
+                        className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
+                        onClick={closeDeleteCommentModal}
+                    />
+
+                    {/* کارت مودال */}
+                    <div className="relative bg-white rounded-3xl shadow-2xl p-6 w-full max-w-[285px] md:max-w-sm text-center">
+                        <div className="w-14 h-14 mx-auto mb-4 bg-red-50 rounded-2xl flex items-center justify-center">
+                            <FiTrash2 className="text-red-600 text-xl" />
+                        </div>
+                        <h3 className="text-md md:text-lg font-bold text-gray-900 mb-1.5">حذف دیدگاه</h3>
+                        <p className="text-gray-500 text-xs md:text-sm leading-relaxed mb-6">
+                            آیا مطمئن هستید که می‌خواهید این دیدگاه را حذف کنید؟ این عمل قابل بازگشت نیست.
+                        </p>
+                        <div className="flex gap-2.5">
+                            <button
+                                onClick={closeDeleteCommentModal}
+                                className="flex-1 h-11 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold text-sm transition-colors cursor-pointer"
+                            >
+                                انصراف
+                            </button>
+                            <button
+                                onClick={confirmDeleteComment}
+                                className="flex-1 h-11 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold text-sm transition-colors cursor-pointer"
+                            >
+                                حذف
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {toast && (
+                <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[300] animate-[fadeInUp_0.3s_ease-out]">
+                    <div className="flex items-center gap-2 bg-white-900/50 backdrop-blur-lg text-red-600 text-sm font-medium px-5 py-3 rounded-full shadow-2xl shadow-black/20 ring-1 ring-white/20">
+                        <FiCheckCircle className="w-4 h-4 text-green-400" />
+                        {toast}
+                    </div>
+                </div>
+            )}
 
             <style>{`
                 @keyframes fadeInUp {
@@ -755,7 +864,17 @@ export default function PinDetailPage() {
                 @media (prefers-reduced-motion: reduce) {
                     * { animation: none !important; }
                 }
+                @keyframes fadeIn {
+                    from { opacity: 0; }
+                    to { opacity: 1; }
+                }
+                @keyframes fadeOut {
+                    from { opacity: 1; }
+                    to { opacity: 0; }
+                }
             `}</style>
+
+
         </main>
     )
 }

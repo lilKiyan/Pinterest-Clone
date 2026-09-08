@@ -13,56 +13,64 @@ export default function ProfilePage() {
     const [loadingUser, setLoadingUser] = useState(!user)
     const [followersCount, setFollowersCount] = useState(0)
 
-    // دریافت اولیه کاربر اگر store خالی باشد
-    useEffect(() => {
+
+    const fetchUserData = async () => {
         if (!user) {
-            fetch('/api/auth/me')
-                .then(res => res.ok ? res.json() : null)
-                .then(data => {
-                    if (data?.user) setUser(data.user)
-                })
-                .catch(console.error)
-                .finally(() => setLoadingUser(false))
-        } else {
-            setLoadingUser(false)
-        }
-    }, [user, setUser])
-
-    // دریافت پین‌های کاربر
-    useEffect(() => {
-        const fetchPins = async () => {
-            if (!user) return
             try {
-                const res = await fetch('/api/pins/mine')
-                if (!res.ok) throw new Error('خطا')
-                const data = await res.json()
-                setPins(data)
-            } catch (error) {
-                console.error(error)
-            } finally {
-                setLoadingPins(false)
-            }
-        }
-        fetchPins()
-    }, [user])
-
-    // دریافت تعداد دنبال‌کننده‌ها
-    useEffect(() => {
-        const fetchFollowersCount = async () => {
-            if (!user) return
-            try {
-                const res = await fetch(`/api/users/${user.id}/follow`)
+                const res = await fetch('/api/auth/me')
                 if (res.ok) {
                     const data = await res.json()
-                    setFollowersCount(data.followersCount)
+                    if (data?.user) setUser(data.user)
                 }
             } catch (error) {
                 console.error(error)
+            } finally {
+                setLoadingUser(false)
             }
+        } else {
+            setLoadingUser(false)
         }
-        fetchFollowersCount()
-    }, [user])
+    }
 
+    const fetchPins = async () => {
+        if (!user) return
+        setLoadingPins(true)
+        try {
+            const res = await fetch('/api/pins/mine')
+            if (!res.ok) throw new Error('خطا در دریافت پین های من')
+            const data = await res.json()
+            setPins(data)
+        } catch (error) {
+            console.error(error)
+        } finally {
+            setLoadingPins(false)
+        }
+    }
+
+    const fetchFollowersCount = async () => {
+        if (!user) return
+        try {
+            const res = await fetch(`/api/users/${user.id}/follow`)
+            if (res.ok) {
+                const data = await res.json()
+                setFollowersCount(data.followersCount)
+            }
+        } catch (error) {
+            console.error(error)
+        }
+    }
+
+    useEffect(() => {
+        fetchUserData()
+    }, [user, setUser])
+
+    useEffect(() => {
+        if (user) {
+            fetchPins()
+            fetchFollowersCount()
+        }
+    }, [user])
+    
     const handlePinDeleted = (pinId: string) => {
         setPins(prev => prev.filter(p => p.id !== pinId))
     }
@@ -115,10 +123,10 @@ export default function ProfilePage() {
 
                     <div className="flex flex-col md:flex-row items-center justify-center gap-2.5 mt-3">
                         <span className="flex items-center gap-1 items-center bg-white/10 backdrop-blur-sm text-white/80 text-xs font-medium px-3 py-1.5 rounded-full ring-1 ring-white/10 transition-all duration-200 hover:bg-white/20 hover:scale-105 hover:ring-white/30 cursor-default">
-                             <span>{user.username}</span><FiAtSign className="w-3 h-3" />
+                            <span>{user.username}</span><FiAtSign className="w-3 h-3" />
                         </span>
                         <span className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm text-white/80 text-xs font-medium px-3 py-1.5 rounded-full ring-1 ring-white/10 transition-all duration-200 hover:bg-white/20 hover:scale-105 hover:ring-white/30 cursor-default">
-                             {user.email}<FiMail className="w-3 h-3" />
+                            {user.email}<FiMail className="w-3 h-3" />
                         </span>
                     </div>
 
@@ -195,7 +203,7 @@ export default function ProfilePage() {
                                         key={pin.id}
                                         pin={pin}
                                         onDeletePin={handlePinDeleted}
-                                        optionsRotationDefault={-125} 
+                                        optionsRotationDefault={-125}
                                     />
                                 ))}
                             </div>

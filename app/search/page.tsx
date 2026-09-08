@@ -93,7 +93,7 @@ export default function SearchPage() {
                                 )}
                             </div>
                         ) : (
-                            <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">
+                            <h1 className="text-xl md:text-3xl font-extrabold text-gray-900">
                                 جستجو کنید
                             </h1>
                         )}

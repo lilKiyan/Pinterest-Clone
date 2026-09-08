@@ -148,7 +148,7 @@ export default function SettingsPage() {
     }
 
     const inputBase =
-        'w-full border-2 border-gray-200 rounded-xl pr-10 pl-4 py-3 text-gray-900 placeholder-gray-400 bg-white/80 focus:outline-none focus:border-red-400 focus:ring-4 focus:ring-red-100/50 transition-all duration-200'
+        'w-full border-2 text-sm md:text-lg border-gray-200 rounded-xl pr-10 pl-4 py-3 text-gray-900 placeholder-gray-400 bg-white/80 focus:outline-none focus:border-red-400 focus:ring-4 focus:ring-red-100/50 transition-all duration-200'
 
     return (
         <main dir="rtl" className="relative min-h-screen overflow-hidden bg-gradient-to-br from-gray-50 via-white to-red-50/40 px-4 py-8 md:py-12">
@@ -161,21 +161,21 @@ export default function SettingsPage() {
                 {/* ── هدر صفحه: پیش‌نمایش هویت کاربر ── */}
                 <div className="flex items-center gap-4 md:gap-5 mb-8">
                     <div className="relative shrink-0">
-                        <div className="w-16 h-16 md:w-20 md:h-20 rounded-3xl overflow-hidden bg-gradient-to-br from-red-500 to-rose-600 shadow-xl shadow-red-200/60 ring-2 ring-white flex items-center justify-center text-2xl font-black text-white">
+                        <div className="w-14 h-14 md:w-20 md:h-20 rounded-3xl overflow-hidden bg-gradient-to-br from-red-500 to-rose-600 shadow-xl shadow-red-200/60 ring-2 ring-white flex items-center justify-center text-2xl font-black text-white">
                             {avatar ? (
                                 <img src={avatar} alt="avatar" className="w-full h-full object-cover" />
                             ) : (
                                 user.username?.charAt(0).toUpperCase()
                             )}
                         </div>
-                        <div className="absolute -bottom-1 -left-1 w-5 h-5 bg-green-500 rounded-full border-[3px] border-white" />
+                        <div className="absolute bottom-0.5 md:-bottom-1 -left-1 md:-left-1 w-3 h-3 bg-green-500 rounded-full border-[3px] border-white" />
                     </div>
                     <div className="min-w-0">
-                        <h1 className="text-2xl md:text-3xl font-extrabold bg-gradient-to-l from-red-600 to-rose-600 bg-clip-text text-transparent">
+                        <h1 className="text-lg md:text-3xl font-extrabold bg-gradient-to-l from-red-600 to-rose-600 bg-clip-text text-transparent">
                             تنظیمات پروفایل
                         </h1>
-                        <p className="text-gray-500 text-sm mt-1 flex items-center gap-1.5">
-                            <span className="truncate">
+                        <p className="text-gray-500 text-[12px] md:text-sm mt-1 flex items-center gap-1.5">
+                            <span className="">
                                 @{user.username} — اطلاعات شخصی و رمز عبور خود را مدیریت کنید
                             </span>
                         </p>
@@ -211,7 +211,7 @@ export default function SettingsPage() {
                                     <FiUser className="w-5 h-5 text-red-600" />
                                 </div>
                                 <div>
-                                    <h2 className="text-lg font-bold text-gray-900">اطلاعات شخصی</h2>
+                                    <h2 className="md:text-lg text-md font-bold text-gray-900">اطلاعات شخصی</h2>
                                     <p className="text-xs text-gray-400 mt-0.5">این اطلاعات برای دیگر کاربران نمایش داده می‌شود</p>
                                 </div>
                             </div>
@@ -240,7 +240,7 @@ export default function SettingsPage() {
                                 </div>
                                 <div className="text-center sm:text-right">
                                     <p className="font-bold text-gray-900">تصویر پروفایل</p>
-                                    <p className="text-sm text-gray-500 mt-1 leading-relaxed">
+                                    <p className="text-xs md:text-sm text-gray-500 mt-1 leading-relaxed">
                                         برای تغییر آواتار روی دکمه دوربین کلیک کنید
                                     </p>
                                 </div>
@@ -330,13 +330,13 @@ export default function SettingsPage() {
                                         <FiShield className="w-5 h-5 text-blue-600" />
                                     </div>
                                     <div>
-                                        <h2 className="text-lg font-bold text-gray-900">تغییر رمز عبور</h2>
-                                        <p className="text-xs text-gray-400 mt-0.5">اختیاری — برای تغییر رمز، هر دو فیلد را پر کنید</p>
+                                        <h2 className="text-sm md:text-lg font-bold text-gray-900">تغییر رمز عبور</h2>
+                                        <p className="text-[10px] md:text-xs text-gray-400 mt-0.5">اختیاری — برای تغییر رمز، هر دو فیلد را پر کنید</p>
                                     </div>
                                 </div>
                                 {/* بج وضعیت */}
                                 <span
-                                    className={`shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full transition-colors ${oldPassword && newPassword
+                                    className={`shrink-0 text-[10px] md:text-xs font-semibold px-3 py-1.5 rounded-full transition-colors ${oldPassword && newPassword
                                             ? 'bg-blue-50 text-blue-600 ring-1 ring-blue-100'
                                             : 'bg-gray-50 text-gray-400 ring-1 ring-gray-100'
                                         }`}

@@ -87,12 +87,13 @@ export default function BoardPage() {
             </div>
 
             {pins.length > 0 ? (
-                <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4 space-y-4">
+                <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4 space-y-4 px-4">
                     {pins.map((pin: any) => (
                         <PinCard
                             key={pin.id}
                             pin={pin}
                             onDeletePin={handleDeletePin}
+                            optionsRotationDefault={-125} 
                             onRemoveFromBoard={handleRemovePinFromBoard}
                         />
                     ))}
