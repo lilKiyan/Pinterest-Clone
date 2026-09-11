@@ -1,9 +1,9 @@
 "use client"
 
-import { useEffect, useState, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { useAuthStore } from '@/lib/authStore'
 import { FiMessageCircle, FiArrowLeft, FiArrowRight, FiMail } from 'react-icons/fi'
+import { useQuery } from '@tanstack/react-query'
 
 type Conversation = {
     id: string
@@ -50,44 +50,20 @@ const SkeletonRow = ({ delay }: { delay: number }) => (
 
 export default function MessagesPage() {
     const { user } = useAuthStore()
-    const [conversations, setConversations] = useState<Conversation[]>([])
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState('')
-    const isInitialFetch = useRef(true)
 
-    const fetchConversations = useCallback(async () => {
-        if (!user) return
-        // فقط بار اول loading کامل نمایش بده
-        if (isInitialFetch.current) {
-            setLoading(true)
-        }
-        try {
+    const { data: conversations = [], isLoading: loading, isError, error, refetch } = useQuery<Conversation[]>({
+        queryKey: ['conversations',user?.id],
+        queryFn: async () => {
             const res = await fetch('/api/conversations')
             if (!res.ok) throw new Error('خطا در دریافت گفتگوها')
             const data = await res.json()
-            setConversations(data.conversations || [])
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'خطا')
-        } finally {
-            setLoading(false)
-            isInitialFetch.current = false
-        }
-    }, [user])
+            return data.conversations || []
+        },
+        enabled: !!user,
+        refetchInterval: 5000,
+        staleTime: 2 * 1000,
+    })
 
-    // بارگذاری اولیه
-    useEffect(() => {
-        fetchConversations()
-    }, [fetchConversations])
-
-    // Polling هر ۵ ثانیه
-    useEffect(() => {
-        if (!user) return
-        const interval = setInterval(() => {
-            fetchConversations()
-        }, 5000)
-        return () => clearInterval(interval)
-    }, [user, fetchConversations])
-    
 
     if (!user) {
         return (
@@ -153,9 +129,11 @@ export default function MessagesPage() {
                         <div className="w-16 h-16 mx-auto mb-4 rounded-3xl bg-red-50 ring-1 ring-red-100 flex items-center justify-center -rotate-3">
                             <FiMessageCircle className="w-7 h-7 text-red-300" />
                         </div>
-                        <p className="text-gray-600 font-bold">{error}</p>
+                        <p className="text-gray-600 font-bold">
+                            {(error as Error)?.message || 'خطا در دریافت گفتگوها'}
+                        </p>
                         <button
-                            onClick={() => window.location.reload()}
+                            onClick={() => refetch()}
                             className="mt-4 text-sm font-bold text-red-600 hover:underline cursor-pointer"
                         >
                             تلاش مجدد
@@ -181,7 +159,6 @@ export default function MessagesPage() {
                     <div className="space-y-2.5">
                         {conversations.map((conv, index) => {
                             const other = conv.otherUser
-                            const hasNewMessage = conv.lastMessage && conv.lastMessage.senderId !== user.id
                             return (
                                 <Link
                                     key={conv.id}

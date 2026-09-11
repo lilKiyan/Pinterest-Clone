@@ -7,11 +7,11 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({
     defaultOptions: {
       queries: {
-        staleTime: 60 * 1000, // ۱ دقیقه داده تازه است
-        refetchOnWindowFocus: false, // با focus دوباره fetch نکند (اختیاری)
-        retry: 1, // فقط یک‌بار retry
-      },
-    },
+        staleTime: 60* 1000,
+        refetchOnWindowFocus:false,
+         retry: 1,
+      }
+    }
   }))
 
   return (

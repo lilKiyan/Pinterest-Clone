@@ -1,15 +1,12 @@
 "use client"
 
-import { useEffect, useState, useRef, useCallback, Fragment } from 'react'
+import { useEffect, useRef, useState, Fragment } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuthStore } from '@/lib/authStore'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { IoSend } from 'react-icons/io5'
-import {
-    FiArrowRight,
-    FiMessageCircle,
-    FiChevronDown,
-} from 'react-icons/fi'
+import { FiArrowRight, FiMessageCircle, FiChevronDown } from 'react-icons/fi'
 
 type Message = {
     id: string
@@ -36,105 +33,124 @@ export default function ChatPage() {
     const { id } = useParams<{ id: string }>()
     const router = useRouter()
     const { user } = useAuthStore()
+    const queryClient = useQueryClient()
 
-    const [messages, setMessages] = useState<Message[]>([])
+    // ── State های UI ──
     const [newMessage, setNewMessage] = useState('')
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState('')
-    const [sending, setSending] = useState(false)
-    const [otherUser, setOtherUser] = useState<OtherUser | null>(null)
     const [showScrollButton, setShowScrollButton] = useState(false)
     const [unreadCount, setUnreadCount] = useState(0)
     const [firstUnreadId, setFirstUnreadId] = useState<string | null>(null)
     const [initialScrollNeeded, setInitialScrollNeeded] = useState(true)
 
+    // ── Refs ──
     const prevMessagesRef = useRef<Message[]>([])
-    const isInitialLoadRef = useRef(true)
+    const hasSetFirstUnread = useRef(false)
     const messagesEndRef = useRef<HTMLDivElement>(null)
     const messagesContainerRef = useRef<HTMLDivElement>(null)
     const shouldScrollAfterSend = useRef(false)
 
-    const fetchMessages = useCallback(async () => {
-        if (!id || !user) return
-        try {
+    // ── Query ۱: پیام‌ها (با polling) ──
+    const {
+        data: messages = [],
+        isLoading: loading,
+        isError,
+        error,
+    } = useQuery<Message[]>({
+        queryKey: ['messages', id],
+        queryFn: async () => {
             const res = await fetch(`/api/conversations/${id}/messages`)
             if (!res.ok) throw new Error('خطا در دریافت پیام‌ها')
             const data = await res.json()
-            const newMessages = data.messages || []
+            return data.messages || []
+        },
+        enabled: !!id && !!user,
+        refetchInterval: 3000,
+        staleTime: 1000,
+    })
 
-            if (isInitialLoadRef.current) {
-                const firstUnread = newMessages.find(msg => msg.senderId !== user.id && !msg.isRead)
-                setFirstUnreadId(firstUnread?.id || null)
-                prevMessagesRef.current = newMessages
-                setMessages(newMessages)
-                isInitialLoadRef.current = false
-            } else {
-                const newFromOthers = newMessages.filter(msg =>
-                    msg.senderId !== user.id &&
-                    !prevMessagesRef.current.some(prev => prev.id === msg.id)
-                )
+    // ── Query ۲: اطلاعات کاربر مقابل ──
+    const { data: conversationInfo } = useQuery({
+        queryKey: ['conversation', id],
+        queryFn: async () => {
+            const res = await fetch(`/api/conversations/${id}`)
+            if (!res.ok) throw new Error('خطا در دریافت اطلاعات گفتگو')
+            return res.json()
+        },
+        enabled: !!id,
+        staleTime: 5 * 60 * 1000,
+    })
 
-                if (newFromOthers.length > 0) {
-                    const container = messagesContainerRef.current
-                    const nearBottom = container
-                        ? container.scrollHeight - container.scrollTop - container.clientHeight < 100
-                        : false
+    const otherUser: OtherUser | null = conversationInfo?.otherUser || null
 
-                    if (!nearBottom) {
-                        setUnreadCount(prev => prev + newFromOthers.length)
-                    } else {
-                        setUnreadCount(0)
-                    }
-                }
+    // ── Mutation: ارسال پیام ──
+    const sendMessage = useMutation({
+        mutationFn: async (content: string) => {
+            const res = await fetch(`/api/conversations/${id}/messages`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content }),
+            })
+            if (!res.ok) throw new Error('خطا در ارسال پیام')
+            return res.json()
+        },
+        onSuccess: () => {
+            setNewMessage('')
+            shouldScrollAfterSend.current = true
+            queryClient.invalidateQueries({ queryKey: ['messages', id] })
+        },
+    })
 
-                prevMessagesRef.current = newMessages
-                setMessages(newMessages)
-            }
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'خطا')
-        } finally {
-            setLoading(false)
-        }
-    }, [id, user])
+    // ── ست کردن firstUnreadId فقط بار اول ──
+    useEffect(() => {
+        if (hasSetFirstUnread.current) return
+        if (messages.length === 0 || !user) return
 
+        const firstUnread = messages.find(
+            (msg) => msg.senderId !== user.id && !msg.isRead
+        )
+        setFirstUnreadId(firstUnread?.id || null)
+        hasSetFirstUnread.current = true
+    }, [messages, user])
+
+    // ── علامت‌گذاری پیام‌ها به عنوان خوانده‌شده ──
     useEffect(() => {
         if (id && user && firstUnreadId !== null) {
             fetch(`/api/conversations/${id}/read`, { method: 'POST' })
         }
     }, [id, user, firstUnreadId])
 
+    // ── رهگیری پیام‌های جدید از دیگران ──
     useEffect(() => {
-        const fetchConversationInfo = async () => {
-            if (!id) return
-            try {
-                const res = await fetch(`/api/conversations/${id}`)
-                if (res.ok) {
-                    const data = await res.json()
-                    if (data.otherUser) {
-                        setOtherUser(data.otherUser)
-                    }
-                }
-            } catch (err) {
-                console.error(err)
+        if (messages.length === 0) return
+
+        if (prevMessagesRef.current.length === 0) {
+            prevMessagesRef.current = messages
+            return
+        }
+
+        const newFromOthers = messages.filter(
+            (msg) =>
+                msg.senderId !== user?.id &&
+                !prevMessagesRef.current.some((prev) => prev.id === msg.id)
+        )
+
+        if (newFromOthers.length > 0) {
+            const container = messagesContainerRef.current
+            const nearBottom = container
+                ? container.scrollHeight - container.scrollTop - container.clientHeight < 100
+                : false
+
+            if (!nearBottom) {
+                setUnreadCount((prev) => prev + newFromOthers.length)
+            } else {
+                setUnreadCount(0)
             }
         }
-        fetchConversationInfo()
-    }, [id])
 
-    useEffect(() => {
-        setLoading(true)
-        fetchMessages()
-    }, [fetchMessages])
+        prevMessagesRef.current = messages
+    }, [messages, user])
 
-    useEffect(() => {
-        if (!id || !user) return
-        const interval = setInterval(() => {
-            fetchMessages()
-        }, 3000)
-        return () => clearInterval(interval)
-    }, [id, user, fetchMessages])
-
-    // ✅ اسکرول اولیه به پایین
+    // ── اسکرول اولیه به پایین ──
     useEffect(() => {
         if (!loading && initialScrollNeeded && messagesEndRef.current) {
             messagesEndRef.current.scrollIntoView({ behavior: 'auto' })
@@ -142,16 +158,21 @@ export default function ChatPage() {
         }
     }, [loading, messages, initialScrollNeeded])
 
+    // ── اسکرول بعد از ارسال پیام ──
+    useEffect(() => {
+        if (shouldScrollAfterSend.current && messagesEndRef.current) {
+            messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
+            shouldScrollAfterSend.current = false
+        }
+    }, [messages])
+
     const handleScroll = () => {
         const container = messagesContainerRef.current
         if (!container) return
         const isNearBottom =
             container.scrollHeight - container.scrollTop - container.clientHeight < 100
         setShowScrollButton(!isNearBottom)
-
-        if (isNearBottom && unreadCount > 0) {
-            setUnreadCount(0)
-        }
+        if (isNearBottom && unreadCount > 0) setUnreadCount(0)
     }
 
     const scrollToBottom = () => {
@@ -162,37 +183,18 @@ export default function ChatPage() {
         setShowScrollButton(false)
     }
 
-    const handleSend = async (e: React.FormEvent) => {
+    const handleSend = (e: React.FormEvent) => {
         e.preventDefault()
-        if (!newMessage.trim() || sending) return
-        setSending(true)
-        try {
-            const res = await fetch(`/api/conversations/${id}/messages`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ content: newMessage }),
-            })
-            if (!res.ok) throw new Error('خطا در ارسال پیام')
-            setNewMessage('')
-            shouldScrollAfterSend.current = true
-            fetchMessages()
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'خطا')
-        } finally {
-            setSending(false)
-        }
+        if (!newMessage.trim() || sendMessage.isPending) return
+        sendMessage.mutate(newMessage)
     }
-
-    useEffect(() => {
-        if (shouldScrollAfterSend.current && messagesEndRef.current) {
-            messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
-            shouldScrollAfterSend.current = false
-        }
-    }, [messages])
 
     if (!user) {
         return (
-            <main dir="rtl" className="h-full flex flex-col overflow-hidden bg-gradient-to-b from-gray-50 via-white to-red-50/30">
+            <main
+                dir="rtl"
+                className="h-full flex flex-col items-center justify-center gap-5 overflow-hidden bg-gradient-to-b from-gray-50 via-white to-red-50/30"
+            >
                 <div className="w-20 h-20 rounded-3xl bg-white shadow-lg ring-1 ring-black/5 flex items-center justify-center rotate-3">
                     <FiMessageCircle className="w-9 h-9 text-red-300" />
                 </div>
@@ -208,7 +210,10 @@ export default function ChatPage() {
     }
 
     return (
-        <main dir="rtl" className="relative h-full flex flex-col overflow-hidden bg-gradient-to-b from-gray-50 via-white to-red-50/30">
+        <main
+            dir="rtl"
+            className="relative h-full flex flex-col overflow-hidden bg-gradient-to-b from-gray-50 via-white to-red-50/30"
+        >
             <div className="fixed -top-24 -left-24 w-96 h-96 bg-red-100/40 rounded-full blur-3xl pointer-events-none animate-[bgFloat1_8s_ease-in-out_infinite]" />
             <div className="fixed -bottom-32 -right-32 w-[28rem] h-[28rem] bg-orange-100/30 rounded-full blur-3xl pointer-events-none animate-[bgFloat2_10s_ease-in-out_infinite]" />
 
@@ -259,12 +264,14 @@ export default function ChatPage() {
                         <div className="flex justify-center py-20">
                             <div className="w-9 h-9 border-[3px] border-gray-200 border-t-red-500 rounded-full animate-spin" />
                         </div>
-                    ) : error ? (
+                    ) : isError ? (
                         <div className="flex flex-col items-center py-16 text-center">
                             <div className="w-14 h-14 mb-3 rounded-2xl bg-red-50 ring-1 ring-red-100 flex items-center justify-center -rotate-3">
                                 <FiMessageCircle className="w-6 h-6 text-red-300" />
                             </div>
-                            <p className="text-gray-600 font-bold text-sm">{error}</p>
+                            <p className="text-gray-600 font-bold text-sm">
+                                {(error as Error)?.message || 'خطا در دریافت پیام‌ها'}
+                            </p>
                         </div>
                     ) : messages.length === 0 ? (
                         <div className="text-center py-20 animate-[chatIn_0.5s_ease-out_both]">
@@ -283,7 +290,9 @@ export default function ChatPage() {
                     ) : (
                         messages.map((message, index) => {
                             const isMine = message.senderId === user.id
-                            const nextSame = index < messages.length - 1 && messages[index + 1].senderId === message.senderId
+                            const nextSame =
+                                index < messages.length - 1 &&
+                                messages[index + 1].senderId === message.senderId
 
                             return (
                                 <Fragment key={message.id}>
@@ -297,22 +306,24 @@ export default function ChatPage() {
                                         </div>
                                     )}
                                     <div
-                                        className={`flex items-end gap-2 ${isMine ? 'justify-start' : 'justify-end'} ${
-                                            isMine
+                                        className={`flex items-end gap-2 ${isMine ? 'justify-start' : 'justify-end'
+                                            } ${isMine
                                                 ? 'animate-[messagePopMine_0.35s_cubic-bezier(0.34,1.56,0.64,1)]'
                                                 : 'animate-[messagePopTheirs_0.35s_cubic-bezier(0.34,1.56,0.64,1)]'
-                                        }`}
+                                            }`}
                                         style={{ animationDelay: `${Math.min(index * 25, 250)}ms` }}
                                     >
                                         <div
-                                            className={`relative max-w-[82%] sm:max-w-[70%] px-4 py-2.5 text-sm leading-relaxed shadow-md transition-all duration-200 ${
-                                                isMine
+                                            className={`relative max-w-[82%] sm:max-w-[70%] px-4 py-2.5 text-sm leading-relaxed shadow-md transition-all duration-200 ${isMine
                                                     ? 'bg-gradient-to-br from-red-500 to-rose-600 text-white shadow-red-200/60 rounded-2xl rounded-br-md'
                                                     : 'bg-white text-gray-800 ring-1 ring-gray-200/90 shadow-gray-200/50 rounded-2xl rounded-bl-md'
-                                            }`}
+                                                }`}
                                         >
                                             <p className="break-words whitespace-pre-wrap">{message.content}</p>
-                                            <span className={`text-[10px] mt-1 block tabular-nums ${isMine ? 'text-white/70' : 'text-gray-400'}`}>
+                                            <span
+                                                className={`text-[10px] mt-1 block tabular-nums ${isMine ? 'text-white/70' : 'text-gray-400'
+                                                    }`}
+                                            >
                                                 {new Date(message.createdAt).toLocaleTimeString('fa-IR', {
                                                     hour: '2-digit',
                                                     minute: '2-digit',
@@ -324,7 +335,12 @@ export default function ChatPage() {
                                             <div className={`w-7 shrink-0 ${nextSame ? 'invisible' : ''}`}>
                                                 <div className="w-7 h-7 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center text-gray-600 text-[10px] font-bold ring-2 ring-white overflow-hidden shadow-sm">
                                                     {message.sender?.avatar ? (
-                                                        <img src={message.sender.avatar} alt="" className="w-full h-full object-cover" loading="lazy" />
+                                                        <img
+                                                            src={message.sender.avatar}
+                                                            alt=""
+                                                            className="w-full h-full object-cover"
+                                                            loading="lazy"
+                                                        />
                                                     ) : (
                                                         message.sender?.username?.charAt(0).toUpperCase() || '؟'
                                                     )}
@@ -344,11 +360,10 @@ export default function ChatPage() {
                 <button
                     onClick={scrollToBottom}
                     aria-label="پایین"
-                    className={`absolute bottom-24 left-1/2 -translate-x-1/2 z-40 w-11 h-11 rounded-full flex items-center justify-center transition-all duration-300 cursor-pointer ${
-                        unreadCount > 0
+                    className={`absolute bottom-24 left-1/2 -translate-x-1/2 z-40 w-11 h-11 rounded-full flex items-center justify-center transition-all duration-300 cursor-pointer ${unreadCount > 0
                             ? 'bg-gradient-to-br from-red-500 to-rose-600 text-white shadow-lg shadow-red-300/50 hover:shadow-xl hover:shadow-red-400/60 hover:scale-110 active:scale-95'
                             : 'bg-white text-gray-600 shadow-lg ring-1 ring-black/5 hover:bg-gray-50 hover:scale-110 active:scale-95'
-                    } animate-[bounceSmooth_1.2s_ease-in-out_infinite]`}
+                        } animate-[bounceSmooth_1.2s_ease-in-out_infinite]`}
                 >
                     {unreadCount > 0 && (
                         <span className="absolute -top-1.5 -right-1.5 flex">
@@ -369,18 +384,20 @@ export default function ChatPage() {
                 >
                     <button
                         type="submit"
-                        disabled={!newMessage.trim() || sending}
+                        disabled={!newMessage.trim() || sendMessage.isPending}
                         aria-label="ارسال پیام"
-                        className={`shrink-0 w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 cursor-pointer ${
-                            newMessage.trim() && !sending
+                        className={`shrink-0 w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 cursor-pointer ${newMessage.trim() && !sendMessage.isPending
                                 ? 'bg-gradient-to-br from-red-500 to-rose-600 text-white shadow-lg shadow-red-300/60 hover:shadow-xl hover:-translate-y-0.5 active:scale-90'
                                 : 'bg-gray-200/80 text-gray-400 cursor-not-allowed scale-95'
-                        }`}
+                            }`}
                     >
-                        {sending ? (
+                        {sendMessage.isPending ? (
                             <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
                         ) : (
-                            <IoSend className={`w-5 h-5 me-1 ${newMessage.trim() && !sending ? 'animate-[sendPop_0.3s_ease-out]' : ''}`} />
+                            <IoSend
+                                className={`w-5 h-5 me-1 ${newMessage.trim() ? 'animate-[sendPop_0.3s_ease-out]' : ''
+                                    }`}
+                            />
                         )}
                     </button>
 
@@ -395,38 +412,39 @@ export default function ChatPage() {
             </footer>
 
             <style>{`
-                @keyframes messagePopMine {
-                    0% { opacity: 0; transform: translateX(20px) scale(0.9); }
-                    100% { opacity: 1; transform: translateX(0) scale(1); }
-                }
-                @keyframes messagePopTheirs {
-                    0% { opacity: 0; transform: translateX(-20px) scale(0.9); }
-                    100% { opacity: 1; transform: translateX(0) scale(1); }
-                }
-                @keyframes sendPop {
-                    0% { transform: scale(0.5) rotate(-15deg); }
-                    60% { transform: scale(1.2) rotate(5deg); }
-                    100% { transform: scale(1) rotate(0deg); }
-                }
-                @keyframes bgFloat1 {
-                    0%, 100% { transform: translate(0, 0) scale(1); }
-                    50% { transform: translate(20px, 15px) scale(1.1); }
-                }
-                @keyframes bgFloat2 {
-                    0%, 100% { transform: translate(0, 0) scale(1); }
-                    50% { transform: translate(-25px, -20px) scale(1.15); }
-                }
-                @keyframes bounceSmooth {
-                    0%, 100% { transform: translateY(0); }
-                    50% { transform: translateY(-6px); }
-                }
-                @media (prefers-reduced-motion: reduce) {
-                    * { animation: none !important; }
-                }
-                .nav-boards {
-                    display:none;
-                }
-            `}</style>
+        @keyframes chatIn {
+          from { opacity: 0; transform: translateY(10px) scale(0.97); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes messagePopMine {
+          0% { opacity: 0; transform: translateX(20px) scale(0.9); }
+          100% { opacity: 1; transform: translateX(0) scale(1); }
+        }
+        @keyframes messagePopTheirs {
+          0% { opacity: 0; transform: translateX(-20px) scale(0.9); }
+          100% { opacity: 1; transform: translateX(0) scale(1); }
+        }
+        @keyframes sendPop {
+          0% { transform: scale(0.5) rotate(-15deg); }
+          60% { transform: scale(1.2) rotate(5deg); }
+          100% { transform: scale(1) rotate(0deg); }
+        }
+        @keyframes bgFloat1 {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          50% { transform: translate(20px, 15px) scale(1.1); }
+        }
+        @keyframes bgFloat2 {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          50% { transform: translate(-25px, -20px) scale(1.15); }
+        }
+        @keyframes bounceSmooth {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-6px); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          * { animation: none !important; }
+        }
+      `}</style>
         </main>
     )
 }
