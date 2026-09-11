@@ -29,6 +29,8 @@ export async function GET() {
             return {
                 id: pin.id,
                 title: pin.title,
+                imageWidth: pin.imageWidth,    // ✅
+                imageHeight: pin.imageHeight,  // ✅
                 description: pin.description,
                 imageUrl: pin.imageUrl,
                 createdAt: pin.createdAt,

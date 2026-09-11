@@ -110,6 +110,10 @@ export async function GET(
         const { id } = await params
         const user = await getCurrentUser()
 
+        const cacheControl = user
+            ? 'private, no-store'
+            : 'public, max-age=120, stale-while-revalidate=300'
+
         const pin = await prisma.pin.findUnique({
             where: { id },
             include: {
@@ -167,7 +171,12 @@ export async function GET(
             isLikedByMe: user ? pin.likes.some((l) => l.userId === user.id) : false,
         }
 
-        return NextResponse.json({ pin: pinData })
+        return NextResponse.json({ pin: pinData },
+            {
+                headers: {
+                    'Cache-Control': cacheControl,
+                },
+            })
     } catch (error) {
         console.error('GET /api/pins/[id] error:', error)
         return NextResponse.json(

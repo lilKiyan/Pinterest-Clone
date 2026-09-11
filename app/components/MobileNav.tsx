@@ -2,17 +2,58 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { FiHome, FiPlus, FiGrid, FiUser, FiSearch } from 'react-icons/fi'
+import { useAuthStore } from '@/lib/authStore'
+import { useState, useEffect } from 'react'
+import {
+    FiHome,
+    FiPlus,
+    FiGrid,
+    FiUser,
+    FiSearch,
+    FiMessageCircle,
+} from 'react-icons/fi'
 
 const MobileNav = () => {
     const pathname = usePathname()
+    const [unreadCount, setUnreadCount] = useState(0)
+    const { user } = useAuthStore()
+
+    // ✅ فقط یک useEffect برای دریافت تعداد پیام‌های نخوانده
+    useEffect(() => {
+        if (!user) return
+
+        const fetchUnreadCount = async () => {
+            try {
+                const res = await fetch('/api/conversations')
+                if (res.ok) {
+                    const data = await res.json()
+                    const total = (data.conversations || []).reduce(
+                        (sum: number, conv: any) => sum + (conv.unreadCount || 0),
+                        0
+                    )
+                    setUnreadCount(total)
+                }
+            } catch (err) {
+                console.error(err)
+            }
+        }
+
+        fetchUnreadCount()
+        const interval = setInterval(fetchUnreadCount, 10000)
+        return () => clearInterval(interval)
+    }, [user])
+
+    // ✅ شرط مخفی‌سازی بعد از Hook ها
+    if (pathname.startsWith('/messages/')) {
+        return null
+    }
 
     const navItems = [
         { href: '/', icon: FiHome, label: 'خانه' },
         { href: '/search', icon: FiSearch, label: 'جستجو' },
         { href: '/create', icon: FiPlus, label: 'ساخت پین' },
         { href: '/myboards', icon: FiGrid, label: 'بردها' },
-        { href: '/profile', icon: FiUser, label: 'پروفایل' },
+        { href: '/messages', icon: FiMessageCircle, label: 'پیام‌ها' },
     ]
 
     const activeIndex = navItems.findIndex((item) =>
@@ -109,13 +150,24 @@ const MobileNav = () => {
                                     <span className="absolute top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-red-400/25 blur-md pointer-events-none" />
                                 )}
 
-                                <Icon
-                                    className={`relative w-[18px] h-[18px] transition-all duration-500 ${
-                                        active
-                                            ? 'text-red-600 scale-110 drop-shadow-[0_1px_5px_rgba(239,68,68,0.4)] animate-[iconPop_0.5s_cubic-bezier(0.34,1.56,0.64,1)]'
-                                            : 'text-gray-400 group-hover:text-gray-600 group-hover:scale-105 group-active:scale-90'
-                                    }`}
-                                />
+                                {/* آیکون با badge */}
+                                <span className="relative">
+                                    <Icon
+                                        className={`relative w-[18px] h-[18px] transition-all duration-500 ${
+                                            active
+                                                ? 'text-red-600 scale-110 drop-shadow-[0_1px_5px_rgba(239,68,68,0.4)] animate-[iconPop_0.5s_cubic-bezier(0.34,1.56,0.64,1)]'
+                                                : 'text-gray-400 group-hover:text-gray-600 group-hover:scale-105 group-active:scale-90'
+                                        }`}
+                                    />
+
+                                    {/* badge برای پیام‌های نخوانده */}
+                                    {item.href === '/messages' && unreadCount > 0 && (
+                                        <span className="absolute top-[1px] -left-1 flex">
+                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                            <span className="relative inline-flex rounded-full h-2 w-2 bg-gradient-to-br from-red-500 to-rose-600 ring-2 ring-white shadow-sm"></span>
+                                        </span>
+                                    )}
+                                </span>
 
                                 {/* نقطه‌ی نورانی زیر آیتم فعال */}
                                 <span
@@ -130,18 +182,15 @@ const MobileNav = () => {
             </div>
 
             <style>{`
-                /* بونس فنری آیکون فعال */
                 @keyframes iconPop {
                     0%   { transform: scale(0.6) translateY(3px); }
                     60%  { transform: scale(1.25) translateY(-2px); }
                     100% { transform: scale(1.1) translateY(0); }
                 }
-                /* پالس رادار پشت دکمه‌ی مرکزی */
                 @keyframes radarPulse {
                     0%   { transform: scale(0.85); opacity: 0.7; }
                     100% { transform: scale(1.45); opacity: 0; }
                 }
-                /* چرخش حلقه‌ی گرادیانتی */
                 @keyframes spinSlow {
                     from { transform: rotate(0deg); }
                     to   { transform: rotate(360deg); }

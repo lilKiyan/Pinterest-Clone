@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { FiSearch, FiPlus, FiChevronDown, FiCheck, FiBookmark } from 'react-icons/fi'
 import Link from 'next/link'
+import Image from 'next/image'
 
 export type Board = {
     id: string
@@ -270,9 +271,11 @@ const BoardRow = ({
         }`}
     >
         <div className="relative w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-gray-100 ring-1 ring-black/5 group-hover/board:ring-red-200 transition-all">
-            <img
+            <Image
                 src={board.thumbnail}
                 alt={board.name}
+                width={48}
+                height={48}
                 className="w-full h-full object-cover"
             />
         </div>

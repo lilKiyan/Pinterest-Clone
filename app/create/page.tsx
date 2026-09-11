@@ -51,7 +51,7 @@ export default function CreatePage() {
                 throw new Error(uploadData.error || 'خطا در آپلود تصویر')
             }
 
-            const { imageUrl } = await uploadRes.json()
+            const { imageUrl, width, height } = await uploadRes.json()
 
             const pinRes = await fetch('/api/pins', {
                 method: 'POST',
@@ -60,7 +60,9 @@ export default function CreatePage() {
                     title: title.trim(),
                     description: description.trim(),
                     imageUrl,
-                }),
+                    imageWidth: width,
+                    imageHeight: height,
+                })
             })
 
             if (!pinRes.ok) {
@@ -259,7 +261,7 @@ export default function CreatePage() {
                     </div>
 
                     {/* ── نوار دکمه‌ها (استیکی) ── */}
-                    <div className="sticky bottom-4 z-30">
+                    <div className="sticky bottom-4 z-30 mb-15 md:mb-0">
                         <div className="bg-white/80 backdrop-blur-xl rounded-2xl ring-1 ring-black/5 shadow-2xl shadow-gray-300/40 p-3 flex items-center gap-3">
                             <button
                                 type="submit"

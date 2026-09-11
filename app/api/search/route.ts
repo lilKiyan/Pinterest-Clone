@@ -37,6 +37,8 @@ export async function GET(request: Request) {
                 id: pin.id,
                 title: pin.title,
                 description: pin.description,
+                imageWidth: pin.imageWidth,
+                imageHeight: pin.imageHeight,
                 imageUrl: pin.imageUrl,
                 createdAt: pin.createdAt,
                 updatedAt: pin.updatedAt,
@@ -50,7 +52,13 @@ export async function GET(request: Request) {
             }
         })
 
-        return NextResponse.json({ pins: pinsWithMeta })
+        return NextResponse.json({ pins: pinsWithMeta },
+            {
+                headers: {
+                    'Cache-Control': 'public, max-age=30, stale-while-revalidate=60',
+                },
+            }
+        )
     } catch (error) {
         console.error('GET /api/search error:', error)
         return NextResponse.json(

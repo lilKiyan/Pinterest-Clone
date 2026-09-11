@@ -57,10 +57,10 @@ export default function LoginPage() {
           <div className="w-16 h-16 mx-auto mb-2 bg-gradient-to-br from-red-500 to-rose-600 rounded-2xl flex items-center justify-center text-white text-3xl font-black shadow-xl shadow-red-200 ring-4 ring-white">
             P
           </div>
-          <h1 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-red-600 to-rose-600">
+          <h1 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-red-600 to-rose-600">
             ورود به حساب
           </h1>
-          <p className="text-gray-500 text-sm mt-2">خوش برگشتی!</p>
+          <p className="text-gray-500 text-sm mt-1 mb-5">خوش برگشتی!</p>
         </div>
 
         {/* فرم شیشه‌ای */}
@@ -86,7 +86,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
-                className="w-full border-2 border-gray-200 rounded-xl pr-12 pl-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:border-red-400 focus:ring-4 focus:ring-red-100/70 transition-all bg-white/50"
+                className="w-full border-2 border-gray-200 rounded-xl pr-12 pl-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:border-red-400 focus:ring-4 focus:ring-red-100/70 transition-all bg-white/50 placeholder:text-sm md:placeholder:text-md"
                 dir="ltr"
                 required
               />
@@ -104,7 +104,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full border-2 border-gray-200 rounded-xl pr-12 pl-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:border-red-400 focus:ring-4 focus:ring-red-100/70 transition-all bg-white/50"
+                className="w-full border-2 border-gray-200 rounded-xl pr-12 pl-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:border-red-400 focus:ring-4 focus:ring-red-100/70 transition-all bg-white/50 placeholder:text-sm md:placeholder:text-md"
                 dir="ltr"
                 required
               />
@@ -114,7 +114,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-gradient-to-r from-red-600 to-rose-600 text-white font-bold py-3.5 rounded-xl transition-all duration-300 shadow-lg shadow-red-200 hover:shadow-xl hover:shadow-red-300/50 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-gradient-to-r from-red-600 to-rose-600 text-white font-bold py-3.5 mt-7 rounded-xl transition-all duration-300 shadow-lg shadow-red-200 hover:shadow-xl hover:shadow-red-300/50 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <FiLogIn className="text-lg" />
             {loading ? 'در حال ورود...' : 'ورود'}

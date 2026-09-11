@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { writeFile } from 'fs/promises'
+import { writeFile, readFile } from 'fs/promises'   // ✅ readFile اضافه شد
+import { imageSize } from 'image-size'
 import path from 'path'
 
 export async function POST(request: Request) {
@@ -38,10 +39,27 @@ export async function POST(request: Request) {
         // ذخیره فایل
         await writeFile(filePath, buffer)
 
-        // برگردوندن آدرس عمومی فایل
+        //  استخراج ابعاد تصویر با خواندن فایل به صورت بافر
+        let width: number | null = null
+        let height: number | null = null
+
+        try {
+            const fileBuffer = await readFile(filePath)   //  خواندن بافر
+            const dimensions = imageSize(fileBuffer)      //  پاس دادن بافر
+            width = dimensions.width || null
+            height = dimensions.height || null
+        } catch (err) {
+            console.warn('خطا در استخراج ابعاد تصویر:', err)
+            // ادامه می‌دهیم بدون ابعاد
+        }
+
+        // برگردوندن آدرس عمومی فایل + ابعاد
         const imageUrl = `/uploads/${fileName}`
 
-        return NextResponse.json({ imageUrl }, { status: 201 })
+        return NextResponse.json(
+            { imageUrl, width, height },
+            { status: 201 }
+        )
     } catch (error) {
         console.error('POST /api/upload error:', error)
         return NextResponse.json(

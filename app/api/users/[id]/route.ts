@@ -10,6 +10,10 @@ export async function GET(
         const { id } = await params
         const currentUser = await getCurrentUser()
 
+        const cacheControl = currentUser
+            ? 'private, max-age=30, stale-while-revalidate=60'
+            : 'public, max-age=60, stale-while-revalidate=120'
+
         const user = await prisma.user.findUnique({
             where: { id },
             select: {
@@ -64,6 +68,8 @@ export async function GET(
                 title: pin.title,
                 description: pin.description,
                 imageUrl: pin.imageUrl,
+                imageWidth: pin.imageWidth,      // ✅ اضافه شد
+                imageHeight: pin.imageHeight,
                 createdAt: pin.createdAt,
                 updatedAt: pin.updatedAt,
                 userId: pin.userId,
@@ -76,15 +82,22 @@ export async function GET(
             }
         })
 
-        return NextResponse.json({
-            user: {
-                ...user,
-                followersCount,
-                followingCount,
-                isFollowing,
+        return NextResponse.json(
+            {
+                user: {
+                    ...user,
+                    followersCount,
+                    followingCount,
+                    isFollowing,
+                },
+                pins: pinsWithMeta,
             },
-            pins: pinsWithMeta,
-        })
+            {
+                headers: {
+                    'Cache-Control': cacheControl,
+                },
+            }
+        )
     } catch (error) {
         console.error('GET /api/users/[id] error:', error)
         return NextResponse.json(

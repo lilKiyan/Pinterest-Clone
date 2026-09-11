@@ -25,6 +25,9 @@ model User {
   comments  Comment[]
   followers Follow[] @relation("follower")
   following Follow[] @relation("following")
+
+  conversationParticipants ConversationParticipant[]
+  messages                 Message[]
 }
 
 model Pin {
@@ -32,6 +35,8 @@ model Pin {
   title       String
   description String?
   imageUrl    String
+    imageWidth  Int?     // ✅ جدید
+  imageHeight Int?
   link        String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -110,4 +115,34 @@ model Follow {
   following   User     @relation("following", fields: [followingId], references: [id])
 
   @@unique([followerId, followingId])
+}
+
+model Conversation {
+  id          String   @id @default(cuid())
+  participants ConversationParticipant[]
+  messages    Message[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ConversationParticipant {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  userId         String
+  user           User         @relation(fields: [userId], references: [id])
+  joinedAt       DateTime     @default(now())
+
+  @@unique([conversationId, userId])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  senderId       String
+  sender         User         @relation(fields: [senderId], references: [id])
+  content        String
+  createdAt      DateTime     @default(now())
+  isRead         Boolean      @default(false)
 }

@@ -41,7 +41,7 @@ export async function POST(request: Request) {
                 { status: 403 }
             )
         }
-        
+
         // بررسی اینکه قبلاً این پین در این برد ذخیره نشده باشد
         const existingSave = await prisma.save.findFirst({
             where: {
@@ -107,6 +107,8 @@ export async function GET() {
                     title: save.pin.title,
                     description: save.pin.description,
                     imageUrl: save.pin.imageUrl,
+                    imageWidth: save.pin.imageWidth,      // ✅ اضافه شد
+                    imageHeight: save.pin.imageHeight,
                     createdAt: save.pin.createdAt,
                     updatedAt: save.pin.updatedAt,
                     userId: save.pin.userId,

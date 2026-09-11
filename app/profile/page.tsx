@@ -1,78 +1,71 @@
 "use client"
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import Link from 'next/link'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import PinCard from '../components/PinCard'
 import { useAuthStore } from '@/lib/authStore'
 import { FiAtSign, FiMail, FiImage, FiMapPin, FiGrid, FiPlus, FiUserPlus } from 'react-icons/fi'
 
 export default function ProfilePage() {
     const { user, setUser } = useAuthStore()
-    const [pins, setPins] = useState<any[]>([])
-    const [loadingPins, setLoadingPins] = useState(true)
-    const [loadingUser, setLoadingUser] = useState(!user)
-    const [followersCount, setFollowersCount] = useState(0)
+    const queryClient = useQueryClient()
 
-
-    const fetchUserData = async () => {
-        if (!user) {
-            try {
-                const res = await fetch('/api/auth/me')
-                if (res.ok) {
-                    const data = await res.json()
-                    if (data?.user) setUser(data.user)
-                }
-            } catch (error) {
-                console.error(error)
-            } finally {
-                setLoadingUser(false)
-            }
-        } else {
-            setLoadingUser(false)
-        }
-    }
-
-    const fetchPins = async () => {
-        if (!user) return
-        setLoadingPins(true)
-        try {
-            const res = await fetch('/api/pins/mine')
-            if (!res.ok) throw new Error('خطا در دریافت پین های من')
+    // ── دریافت کاربر فعلی (فقط اگر store خالی باشه) ──
+    const { isLoading: loadingUser } = useQuery({
+        queryKey: ['me'],
+        queryFn: async () => {
+            const res = await fetch('/api/auth/me')
+            if (!res.ok) throw new Error('وارد نشده‌اید')
             const data = await res.json()
-            setPins(data)
-        } catch (error) {
-            console.error(error)
-        } finally {
-            setLoadingPins(false)
-        }
-    }
+            return data.user
+        },
+        enabled: !user,             // فقط وقتی store خالیه اجرا بشه
+        staleTime: 5 * 60 * 1000,   // ۵ دقیقه داده تازه است
+    })
 
-    const fetchFollowersCount = async () => {
-        if (!user) return
-        try {
-            const res = await fetch(`/api/users/${user.id}/follow`)
-            if (res.ok) {
-                const data = await res.json()
-                setFollowersCount(data.followersCount)
-            }
-        } catch (error) {
-            console.error(error)
-        }
-    }
-
+    // وقتی user از query لود شد، توی store ذخیره‌ش کن
     useEffect(() => {
-        fetchUserData()
-    }, [user, setUser])
-
-    useEffect(() => {
-        if (user) {
-            fetchPins()
-            fetchFollowersCount()
+        const cachedUser = queryClient.getQueryData(['me']) as any
+        if (!user && cachedUser) {
+            setUser(cachedUser)
         }
-    }, [user])
-    
+    }, [user, setUser, queryClient])
+
+    // ── پین‌های کاربر ──
+    const {
+        data: pins = [],
+        isLoading: loadingPins,
+    } = useQuery({
+        queryKey: ['my-pins'],
+        queryFn: async () => {
+            const res = await fetch('/api/pins/mine')
+            if (!res.ok) throw new Error('خطا در دریافت پین‌های من')
+            return res.json()
+        },
+        enabled: !!user,
+        staleTime: 60 * 1000,
+    })
+
+    // ── تعداد دنبال‌کننده‌ها ──
+    const { data: followersCount = 0 } = useQuery({
+        queryKey: ['followers-count', user?.id],
+        queryFn: async () => {
+            const res = await fetch(`/api/users/${user!.id}/follow`)
+            if (!res.ok) throw new Error('خطا در دریافت دنبال‌کننده‌ها')
+            const data = await res.json()
+            return data.followersCount
+        },
+        enabled: !!user?.id,
+        staleTime: 60 * 1000,
+    })
+
+    // حذف پین → invalidate query
     const handlePinDeleted = (pinId: string) => {
-        setPins(prev => prev.filter(p => p.id !== pinId))
+        queryClient.setQueryData(['my-pins'], (old: any[] | undefined) =>
+            (old || []).filter((p) => p.id !== pinId)
+        )
+        queryClient.invalidateQueries({ queryKey: ['pins'] })
     }
 
     if (loadingUser) {
@@ -96,7 +89,7 @@ export default function ProfilePage() {
 
     return (
         <main className="pb-8">
-            {/* هیرو رنگی */}
+            {/* هیرو */}
             <div className="relative overflow-hidden bg-[#150a08] px-4 sm:px-8 pt-14 pb-20 sm:pb-24">
                 <div className="absolute -top-24 -right-16 w-72 h-72 bg-red-600/40 rounded-full blur-[100px] animate-pulse" />
                 <div className="absolute -bottom-24 -left-16 w-80 h-80 bg-orange-500/30 rounded-full blur-[100px] animate-pulse" />
@@ -122,7 +115,7 @@ export default function ProfilePage() {
                     </h1>
 
                     <div className="flex flex-col md:flex-row items-center justify-center gap-2.5 mt-3">
-                        <span className="flex items-center gap-1 items-center bg-white/10 backdrop-blur-sm text-white/80 text-xs font-medium px-3 py-1.5 rounded-full ring-1 ring-white/10 transition-all duration-200 hover:bg-white/20 hover:scale-105 hover:ring-white/30 cursor-default">
+                        <span className="flex items-center gap-1 bg-white/10 backdrop-blur-sm text-white/80 text-xs font-medium px-3 py-1.5 rounded-full ring-1 ring-white/10 transition-all duration-200 hover:bg-white/20 hover:scale-105 hover:ring-white/30 cursor-default">
                             <span>{user.username}</span><FiAtSign className="w-3 h-3" />
                         </span>
                         <span className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm text-white/80 text-xs font-medium px-3 py-1.5 rounded-full ring-1 ring-white/10 transition-all duration-200 hover:bg-white/20 hover:scale-105 hover:ring-white/30 cursor-default">
@@ -130,9 +123,8 @@ export default function ProfilePage() {
                         </span>
                     </div>
 
-                    {/* آمار: مینیمال با لهجه‌ی رنگی */}
+                    {/* آمار */}
                     <div className="mt-6 flex items-center gap-5 sm:gap-7">
-
                         {/* پین‌ها */}
                         <div className="group/stat flex flex-col items-center gap-1.5 cursor-default">
                             <div className="flex items-center gap-1.5">
@@ -142,11 +134,9 @@ export default function ProfilePage() {
                                 </span>
                             </div>
                             <span className="text-[11px] text-white/50 font-semibold">پین</span>
-                            {/* خط نورانی زیر — با hover روشن میشه */}
                             <span className="h-0.5 w-0 rounded-full bg-gradient-to-l from-red-500 to-orange-400 opacity-0 group-hover/stat:opacity-100 group-hover/stat:w-full transition-all duration-400 ease-out" />
                         </div>
 
-                        {/* جداکننده نقطه‌ای */}
                         <span className="w-1 h-1 rounded-full bg-white/20" />
 
                         {/* دنبال‌کننده‌ها */}
@@ -169,7 +159,6 @@ export default function ProfilePage() {
                 <div className="bg-white rounded-3xl overflow-hidden shadow-[0_10px_40px_-15px_rgba(0,0,0,0.15)] ring-1 ring-black/5 transition-all duration-300 hover:shadow-[0_20px_50px_-12px_rgba(0,0,0,0.2)] hover:ring-black/10">
                     <div className="h-1.5 bg-gradient-to-r from-red-700 to-orange-600" />
 
-                    {/* محتوای باکس */}
                     <div className="p-5 sm:p-7">
                         <div className="flex items-center gap-2.5 mb-6">
                             <div className="w-9 h-9 rounded-xl bg-red-50 flex items-center justify-center transition-transform duration-300 hover:rotate-6">
@@ -198,7 +187,7 @@ export default function ProfilePage() {
                             </div>
                         ) : (
                             <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4 space-y-4">
-                                {pins.map(pin => (
+                                {pins.map((pin: any) => (
                                     <PinCard
                                         key={pin.id}
                                         pin={pin}

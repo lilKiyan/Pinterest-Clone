@@ -1,6 +1,7 @@
 "use client"
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { FiEdit2, FiTrash2 } from 'react-icons/fi'
 
 export default function BoardCard({
@@ -26,14 +27,20 @@ export default function BoardCard({
                 >
                     {coverPins.length > 0 ? (
                         <div className="grid grid-cols-2 gap-0.5 aspect-square">
-                            {coverPins.map((pin: any) => (
-                                <img
+                            {coverPins.map((pin: any, idx: number) => (
+                                <div
                                     key={pin.id}
-                                    src={pin.imageUrl}
-                                    alt={pin.title}
-                                    className={`w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.06] ${coverPins.length === 1 ? 'col-span-2 row-span-2' : ''
+                                    className={`relative overflow-hidden ${coverPins.length === 1 ? 'col-span-2 row-span-2' : ''
                                         }`}
-                                />
+                                >
+                                    <Image
+                                        src={pin.imageUrl}
+                                        alt={pin.title}
+                                        fill
+                                        sizes="(max-width: 640px) 50vw, 25vw"
+                                        className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.06]"
+                                    />
+                                </div>
                             ))}
                         </div>
                     ) : (

@@ -6,6 +6,8 @@ export async function GET(request: Request) {
     try {
         const user = await getCurrentUser()
 
+        const cacheControl = user ? 'private, no-store' : 'public, max-age=60, state-while-revalidate=120'
+
         const { searchParams } = new URL(request.url)
         const page = Number(searchParams.get('page') || '1')
         const limit = Number(searchParams.get('limit') || '12')
@@ -26,7 +28,6 @@ export async function GET(request: Request) {
         ])
 
         const pinsWithMeta = pins.map((pin) => {
-            // همه‌ی ذخیره‌های این کاربر روی این پین
             const userSaves = user
                 ? pin.saves.filter((s) => s.userId === user.id)
                 : []
@@ -36,10 +37,12 @@ export async function GET(request: Request) {
                 title: pin.title,
                 description: pin.description,
                 imageUrl: pin.imageUrl,
+                imageWidth: pin.imageWidth,
+                imageHeight: pin.imageHeight,
                 createdAt: pin.createdAt,
                 updatedAt: pin.updatedAt,
                 userId: pin.userId,
-                isOwner: false,
+                isOwner: false,   // ✅ اصلاح شد
                 isSavedByMe: userSaves.length > 0,
                 savedBoards: userSaves.map((s) => ({
                     boardId: s.boardId,
@@ -50,7 +53,14 @@ export async function GET(request: Request) {
 
         const hasMore = skip + pins.length < totalCount
 
-        return NextResponse.json({ pins: pinsWithMeta, hasMore })
+        return NextResponse.json({ pins: pinsWithMeta, hasMore },
+            {
+                headers: {
+                    'Cache-Control': cacheControl,
+                }
+            }
+        )
+        
     } catch (error) {
         console.error('GET /api/pins error:', error)
         return NextResponse.json(
@@ -72,7 +82,7 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json()
-        const { title, description, imageUrl, boardId } = body
+        const { title, description, imageUrl, imageWidth, imageHeight, boardId } = body
 
         if (!title || !imageUrl) {
             return NextResponse.json(
@@ -87,6 +97,8 @@ export async function POST(request: Request) {
                 description: description?.trim() || '',
                 imageUrl,
                 userId: user.id,
+                imageWidth: imageWidth ?? null,
+                imageHeight: imageHeight ?? null,
                 boardId: boardId || null,
             },
         })

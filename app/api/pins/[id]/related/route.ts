@@ -43,10 +43,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
                 title: p.title,
                 description: p.description,
                 imageUrl: p.imageUrl,
+                imageWidth: p.imageWidth,    // ✅ اضافه شد
+                imageHeight: p.imageHeight,  // ✅ اضافه شد
                 createdAt: p.createdAt,
                 updatedAt: p.updatedAt,
                 userId: p.userId,
-                isOwner: false,
+                isOwner: user ? p.userId === user.id : false,
                 isSavedByMe: userSaves.length > 0,
                 savedBoards: userSaves.map((s) => ({
                     boardId: s.boardId,

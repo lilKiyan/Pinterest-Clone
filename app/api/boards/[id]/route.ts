@@ -39,6 +39,8 @@ export async function GET(
         const pins = board.saves.map((save) => ({
             id: save.pin.id,
             title: save.pin.title,
+            imageWidth: save.pin.imageWidth,    
+            imageHeight: save.pin.imageHeight,
             description: save.pin.description,
             imageUrl: save.pin.imageUrl,
             createdAt: save.pin.createdAt,

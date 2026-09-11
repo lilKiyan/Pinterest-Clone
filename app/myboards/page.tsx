@@ -1,9 +1,13 @@
 "use client"
 
 import { useEffect, useState } from 'react'
+import dynamic from 'next/dynamic'
 import PinCard from '../components/PinCard'
 import BoardCard from '../components/BoardCard'
-import { FiPlus, FiX, FiTrash2, FiGrid, FiBookmark, FiFolder, FiImage, FiLock } from 'react-icons/fi'
+import { FiPlus, FiGrid, FiBookmark, FiFolder, FiImage } from 'react-icons/fi'
+
+const CreateEditBoardModal = dynamic(() => import('../components/CreateEditBoardModal'), { ssr: false })
+const DeleteBoardModal = dynamic(() => import('../components/DeleteBoardModal'), { ssr: false })
 
 type Tab = 'my-pins' | 'saved-pins' | 'boards'
 
@@ -17,16 +21,10 @@ export default function MyBoardsPage() {
     const [loadingSavedPins, setLoadingSavedPins] = useState(true)
     const [loadingBoards, setLoadingBoards] = useState(true)
 
-    // state برای مودال ساخت/ویرایش برد
+    // state های UI مودال‌ها (منطق در خود مودال‌هاست)
     const [isBoardModalOpen, setIsBoardModalOpen] = useState(false)
     const [editingBoard, setEditingBoard] = useState<any>(null)
-    const [boardName, setBoardName] = useState('')
-    const [boardIsPrivate, setBoardIsPrivate] = useState(false)
-    const [boardSaving, setBoardSaving] = useState(false)
-
-    // state برای مودال حذف برد
     const [boardToDelete, setBoardToDelete] = useState<any>(null)
-    const [isDeletingBoard, setIsDeletingBoard] = useState(false)
 
     const fetchMyPins = async () => {
         setLoadingMyPins(true)
@@ -44,7 +42,6 @@ export default function MyBoardsPage() {
 
     const fetchSavedPins = async () => {
         setLoadingSavedPins(true)
-
         try {
             const res = await fetch('/api/saves')
             if (!res.ok) throw new Error('خطا در دریافت پین‌های ذخیره‌شده')
@@ -77,87 +74,20 @@ export default function MyBoardsPage() {
         fetchBoards()
     }, [])
 
+    // فقط UI مودال رو باز می‌کنیم، منطق ذخیره توی خود مودال انجام می‌شه
     const openCreateBoardModal = () => {
         setEditingBoard(null)
-        setBoardName('')
-        setBoardIsPrivate(false)
         setIsBoardModalOpen(true)
     }
 
     const openEditBoardModal = (board: any) => {
         setEditingBoard(board)
-        setBoardName(board.name)
-        setBoardIsPrivate(board.isPrivate || false)
         setIsBoardModalOpen(true)
     }
 
     const closeBoardModal = () => {
         setIsBoardModalOpen(false)
-        setBoardName('')
-        setBoardIsPrivate(false)
         setEditingBoard(null)
-    }
-
-    const handleSaveBoard = async () => {
-        // 1. اعتبارسنجی: اگر نام برد خالی بود، کاری نکن
-        if (!boardName.trim()) return
-
-        // 2. فعال کردن حالت لودینگ دکمه ذخیره
-        setBoardSaving(true)
-
-        try {
-            // 3. بررسی می‌کنیم که آیا در حال ویرایش هستیم یا ساخت جدید
-            if (editingBoard) {
-                // حالت ویرایش: PATCH به آدرس با شناسه‌ی برد
-                const res = await fetch(`/api/boards/${editingBoard.id}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name: boardName, isPrivate: boardIsPrivate }),
-                })
-                if (!res.ok) throw new Error('خطا در ویرایش برد')
-            } else {
-                // حالت ساخت: POST به آدرس کلی بردها
-                const res = await fetch('/api/boards', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name: boardName, isPrivate: boardIsPrivate }),
-                })
-                if (!res.ok) throw new Error('خطا در ساخت برد')
-            }
-
-            // 4. بعد از موفقیت: بستن مودال و به‌روزرسانی لیست بردها
-            closeBoardModal()
-            fetchBoards()
-        } catch (error) {
-            // 5. مدیریت خطا: نمایش در کنسول
-            console.error(error)
-        } finally {
-            // 6. غیرفعال کردن لودینگ در هر صورت (چه خطا چه موفق)
-            setBoardSaving(false)
-        }
-    }
-
-    const openDeleteBoardModal = (board: any) => {
-        setBoardToDelete(board)
-    }
-
-    const closeDeleteBoardModal = () => {
-        setBoardToDelete(null)
-    }
-
-    const handleDeleteBoard = async () => {
-        if (!boardToDelete) return
-        setIsDeletingBoard(true)
-        try {
-            const res = await fetch(`/api/boards/${boardToDelete.id}`, { method: 'DELETE' })
-            if (!res.ok) throw new Error('خطا در حذف برد')
-            setBoards((prev) => prev.filter((b) => b.id !== boardToDelete.id))
-            closeDeleteBoardModal()
-        } catch (error) {
-            console.error(error)
-        } finally {
-            setIsDeletingBoard(false)
-        }
     }
 
     const renderPins = (pins: any[], loading: boolean, emptyMessage: string) => (
@@ -213,7 +143,7 @@ export default function MyBoardsPage() {
                             key={board.id}
                             board={board}
                             onEdit={() => openEditBoardModal(board)}
-                            onDelete={() => openDeleteBoardModal(board)}
+                            onDelete={() => setBoardToDelete(board)}
                         />
                     ))}
                 </div>
@@ -224,7 +154,7 @@ export default function MyBoardsPage() {
     const tabTitles: Record<Tab, string> = {
         'my-pins': 'پین‌های من',
         'saved-pins': 'پین‌های ذخیره‌شده',
-        'boards': 'بردهای من', // یا هر عنوان دلخواه برای تب سوم
+        'boards': 'بردهای من',
     }
 
     return (
@@ -265,7 +195,7 @@ export default function MyBoardsPage() {
                             }`}
                     >
                         <FiFolder className="w-4 h-4" />
-                        <span className="hidden sm:inline">ذخیره شده‌ها</span>
+                        <span className="hidden sm:inline">بردهای من</span>
                     </button>
                 </div>
 
@@ -274,91 +204,24 @@ export default function MyBoardsPage() {
                 {activeTab === 'saved-pins' && renderPins(savedPins, loadingSavedPins, 'هنوز پینی ذخیره نکردی.')}
                 {activeTab === 'boards' && renderBoards()}
 
-                {/* مودال ساخت/ویرایش برد */}
+                {/* مودال ساخت/ویرایش برد (dynamic) */}
                 {isBoardModalOpen && (
-                    <div className="fixed mb-0 inset-0 z-[100] bg-black/50 backdrop-blur-[2px] flex items-center justify-center p-4">
-                        <div className="bg-white mb-0 rounded-3xl shadow-2xl p-6 w-full max-w-md">
-                            <div className="flex items-center justify-between mb-5">
-                                <h2 className="text-lg font-bold text-gray-900">
-                                    {editingBoard ? 'ویرایش برد' : 'ساخت برد جدید'}
-                                </h2>
-                                <button
-                                    onClick={closeBoardModal}
-                                    aria-label="بستن"
-                                    className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors cursor-pointer"
-                                >
-                                    <FiX className="w-4 h-4" />
-                                </button>
-                            </div>
-
-                            <label className="block text-xs font-semibold text-gray-500 mb-1.5">نام برد</label>
-                            <input
-                                type="text"
-                                value={boardName}
-                                onChange={(e) => setBoardName(e.target.value)}
-                                placeholder="مثلاً ایده‌های سفر"
-                                className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 mb-4 text-gray-900 placeholder-gray-400 focus:outline-none focus:border-red-400 focus:ring-4 focus:ring-red-100 transition-all"
-                                autoFocus
-                            />
-
-                            <label className="flex items-center gap-2.5 mb-6 px-3.5 py-3 rounded-xl bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors">
-                                <input
-                                    type="checkbox"
-                                    checked={boardIsPrivate}
-                                    onChange={(e) => setBoardIsPrivate(e.target.checked)}
-                                    className="w-4 h-4 accent-red-600"
-                                />
-                                <FiLock className="w-3.5 h-3.5 text-gray-400" />
-                                <span className="text-sm text-gray-700 font-medium">برد خصوصی</span>
-                            </label>
-
-                            <div className="flex gap-2.5">
-                                <button
-                                    onClick={closeBoardModal}
-                                    className="flex-1 h-11 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold text-sm transition-colors cursor-pointer"
-                                >
-                                    انصراف
-                                </button>
-                                <button
-                                    onClick={handleSaveBoard}
-                                    disabled={boardSaving}
-                                    className="flex-1 h-11 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                                >
-                                    {boardSaving ? 'در حال ذخیره...' : 'ذخیره'}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                    <CreateEditBoardModal
+                        editingBoard={editingBoard}
+                        onClose={closeBoardModal}
+                        onSave={fetchBoards}
+                    />
                 )}
 
-                {/* مودال تأیید حذف برد */}
+                {/* مودال حذف برد (dynamic) */}
                 {boardToDelete && (
-                    <div className="fixed inset-0 z-[100] mb-0 bg-black/50 backdrop-blur-[2px] flex items-center justify-center p-4">
-                        <div className="bg-white mb-0 rounded-3xl shadow-2xl p-6 w-full max-w-sm text-center">
-                            <div className="w-14 h-14 mx-auto mb-4 bg-red-50 rounded-2xl flex items-center justify-center">
-                                <FiTrash2 className="text-red-600 text-xl" />
-                            </div>
-                            <h3 className="text-lg font-bold text-gray-900 mb-1.5">حذف برد</h3>
-                            <p className="text-gray-500 text-sm leading-relaxed mb-6">
-                                آیا مطمئنی می‌خوای برد «{boardToDelete.name}» رو حذف کنی؟ این عمل قابل بازگشت نیست.
-                            </p>
-                            <div className="flex gap-2.5">
-                                <button
-                                    onClick={closeDeleteBoardModal}
-                                    className="flex-1 h-11 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold text-sm transition-colors cursor-pointer"
-                                >
-                                    انصراف
-                                </button>
-                                <button
-                                    onClick={handleDeleteBoard}
-                                    disabled={isDeletingBoard}
-                                    className="flex-1 h-11 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                                >
-                                    {isDeletingBoard ? 'در حال حذف...' : 'حذف'}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                    <DeleteBoardModal
+                        board={boardToDelete}
+                        onClose={() => setBoardToDelete(null)}
+                        onDeleted={(id) => {
+                            setBoards((prev) => prev.filter((b) => b.id !== id))
+                        }}
+                    />
                 )}
             </div>
         </main>

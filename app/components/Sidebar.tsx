@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Plus, Bell, MessageCircle, Settings } from 'lucide-react'
-import { FiGrid } from 'react-icons/fi'
+import { FiHome, FiPlus, FiBell, FiMessageCircle, FiSettings, FiGrid } from 'react-icons/fi'
 
 type Board = {
     id: string,
@@ -19,11 +18,11 @@ const boards: Board[] = [
 
 // آیتم‌های ناوبری به یه آرایه منتقل شدن تا هم تکرار کد کمتر بشه هم تشخیص لینک فعال ساده‌تر باشه
 const navItems = [
-    { href: '/', icon: Home, label: 'خانه' },
+    { href: '/', icon: FiHome, label: 'خانه' },
     { href: '/myboards', icon: FiGrid, label: 'بردهای من' },
-    { href: '/create', icon: Plus, label: 'ساخت پین' },
-    { href: '/updates', icon: Bell, label: 'اعلان‌ها' },
-    { href: '/messages', icon: MessageCircle, label: 'پیام‌ها' },
+    { href: '/create', icon: FiPlus, label: 'ساخت پین' },
+    { href: '/updates', icon: FiBell, label: 'اعلان‌ها' },
+    { href: '/messages', icon: FiMessageCircle, label: 'پیام‌ها' },
 ]
 
 const ITEM_HEIGHT = 48
@@ -90,7 +89,7 @@ const Sidebar = () => {
                 {isSettingsActive && (
                     <span className="absolute inset-0 rounded-xl bg-red-50" />
                 )}
-                <Settings
+                <FiSettings 
                     className={`relative w-6 h-6 transition-all duration-200 ${isSettingsActive ? 'text-red-600 scale-105' : 'text-gray-700'
                         }`}
                 />

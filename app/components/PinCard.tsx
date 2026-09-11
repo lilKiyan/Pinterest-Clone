@@ -1,11 +1,35 @@
 "use client"
 
-import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { FiUpload, FiTrash2, FiCheckCircle, FiFolder } from 'react-icons/fi'
-import SaveToBoardDropdown, { Board } from './SaveToBoardDropdown'
-import PinOptionsMenu from './PinOptionsMenu'
+import Image from 'next/image'
+import dynamic from 'next/dynamic'
+import { useState, useEffect } from 'react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { FiUpload, FiCheckCircle, FiFolder } from 'react-icons/fi'
+import type { Board } from './SaveToBoardDropdown'
+
+const SaveToBoardDropdown = dynamic(() => import('./SaveToBoardDropdown'), {
+    ssr: false,
+    loading: () => (
+        <div className="absolute top-3 left-3 right-3">
+            <div className="w-32 h-9 bg-gray-200/60 backdrop-blur-sm rounded-xl animate-pulse" />
+        </div>
+    ),
+})
+
+const PinOptionsMenu = dynamic(() => import('./PinOptionsMenu'), {
+    ssr: false,
+    loading: () => (
+        <button
+            disabled
+            aria-label="گزینه‌های پین"
+            className="w-8 h-8 rounded-full bg-gray-100 animate-pulse"
+        />
+    )
+})
+
+const DeletePinModal = dynamic(() => import('./DeletePinModal'), { ssr: false })
+const EditPinModal = dynamic(() => import('./EditPinModal'), { ssr: false })
 
 type PinCardProps = {
     pin: {
@@ -14,6 +38,8 @@ type PinCardProps = {
         description?: string
         imageUrl: string
         isOwner?: boolean
+        imageWidth?: number | null   // ✅ اضافه شد
+        imageHeight?: number | null
         savedBoards?: { boardId: string; boardName: string }[]
     }
     onDeletePin?: (pinId: string) => void
@@ -22,24 +48,59 @@ type PinCardProps = {
     menuExcluded?: string[]
 }
 
+type SaveMutationVariables = {
+    pinId: string
+    boardId: string
+    action: 'save' | 'unsave'
+    boardName?: string   // ✅ اضافه شد
+}
+
 const PinCard = ({ pin, onDeletePin, onRemoveFromBoard, optionsRotationDefault = -90, menuExcluded }: PinCardProps) => {
-    const router = useRouter()
     const [boards, setBoards] = useState<Board[]>([])
     const [isLoadingBoards, setIsLoadingBoards] = useState(true)
     const [savedBoards, setSavedBoards] = useState<{ boardId: string; boardName: string }[]>(
         pin.savedBoards || []
     )
+    const queryClient = useQueryClient()
+
+    const saveMutation = useMutation({
+        mutationFn: async ({ pinId, boardId, action }: SaveMutationVariables) => {
+            const res = await fetch('/api/saves', {
+                method: action === 'save' ? 'POST' : 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pinId, boardId }),
+            })
+            if (!res.ok) {
+                const data = await res.json()
+                throw new Error(data.error || 'خطا در عملیات')
+            }
+            return res.json()
+        },
+        onSuccess: (_, variables: SaveMutationVariables) => {
+            if (variables.action === 'save') {
+                setSavedBoards((prev) => [
+                    ...prev,
+                    { boardId: variables.boardId, boardName: variables.boardName || '' },
+                ])
+            } else {
+                setSavedBoards((prev) => prev.filter((sb) => sb.boardId !== variables.boardId))
+                if (onRemoveFromBoard) {
+                    onRemoveFromBoard(variables.pinId)
+                }
+            }
+            queryClient.invalidateQueries({ queryKey: ['pins'] })
+            queryClient.invalidateQueries({ queryKey: ['saved-pins'] })
+            queryClient.invalidateQueries({ queryKey: ['boards'] })
+        },
+    })
 
     const [isEditModalOpen, setIsEditModalOpen] = useState(false)
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
     const [showDeletedToast, setShowDeletedToast] = useState(false)
-    const [isDeleting, setIsDeleting] = useState(false)
 
     // وضعیت باز بودن منوی ذخیره (برای اینکه لایه hover موقع باز بودن منو محو نشه)
     const [isSaveMenuOpen, setIsSaveMenuOpen] = useState(false)
 
-    const [editTitle, setEditTitle] = useState(pin.title)
-    const [editDescription, setEditDescription] = useState(pin.description || '')
 
     // بارگذاری بردهای کاربر
     useEffect(() => {
@@ -93,78 +154,17 @@ const PinCard = ({ pin, onDeletePin, onRemoveFromBoard, optionsRotationDefault =
     }
 
     // ذخیره یا حذف پین از برد
-    const handleToggleSave = async (board: Board) => {
+    const handleToggleSave = (board: Board) => {
         const isCurrentlySaved = savedBoards.some((sb) => sb.boardId === board.id)
+        const action = isCurrentlySaved ? 'unsave' : 'save'
 
-        try {
-            if (isCurrentlySaved) {
-                // حذف ذخیره
-                const res = await fetch('/api/saves', {
-                    method: 'DELETE',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ pinId: pin.id, boardId: board.id }),
-                })
-                if (!res.ok) {
-                    const data = await res.json()
-                    throw new Error(data.error || 'خطا در حذف ذخیره')
-                }
-                setSavedBoards((prev) => prev.filter((sb) => sb.boardId !== board.id))
-                // اگر در صفحه برد هستیم، والد را مطلع کن
-                if (onRemoveFromBoard) {
-                    onRemoveFromBoard(pin.id)
-                }
-            } else {
-                // ذخیره جدید
-                const res = await fetch('/api/saves', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ pinId: pin.id, boardId: board.id }),
-                })
-                if (!res.ok) {
-                    const data = await res.json()
-                    throw new Error(data.error || 'خطا در ذخیره پین')
-                }
-                setSavedBoards((prev) => [...prev, { boardId: board.id, boardName: board.name }])
-            }
-        } catch (error) {
-            console.error('❌ خطا:', error)
-        }
-    }
-
-    // ویرایش پین
-    const handleEdit = async () => {
-        try {
-            const res = await fetch(`/api/pins/${pin.id}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title: editTitle, description: editDescription }),
-            })
-            if (!res.ok) throw new Error('خطا در ویرایش پین')
-            setIsEditModalOpen(false)
-            router.refresh()
-        } catch (error) {
-            console.error(error)
-        }
-    }
-
-    // حذف پین
-    const handleDelete = async () => {
-        setIsDeleting(true)
-        try {
-            const res = await fetch(`/api/pins/${pin.id}`, { method: 'DELETE' })
-            if (!res.ok) throw new Error('خطا در حذف پین')
-            setIsDeleteModalOpen(false)
-            setShowDeletedToast(true)
-
-            // اعلام به والد برای حذف از state
-            if (onDeletePin) {
-                onDeletePin(pin.id)
-            }
-        } catch (error) {
-            console.error(error)
-            setIsDeleting(false)
-            setIsDeleteModalOpen(false)
-        }
+        // صدا زدن mutation
+        saveMutation.mutate({
+            pinId: pin.id,
+            boardId: board.id,
+            action,
+            boardName: board.name, // فقط برای save لازم است
+        })
     }
 
     return (
@@ -174,11 +174,17 @@ const PinCard = ({ pin, onDeletePin, onRemoveFromBoard, optionsRotationDefault =
                     overflow-hidden فقط روی همین کانتینر است،
                     بنابراین دراپ‌داون (که بیرون این است) clip نمی‌شود */}
                 <Link href={`/pin/${pin.id}`} className="block no-underline">
-                    <div className="relative rounded-[15px] overflow-hidden bg-gray-100 ring-1 ring-black/5 group-hover:ring-black/10 transition-all">
-                        <img
+                    <div
+                        className="relative overflow-hidden rounded-[15px] bg-gray-100 ring-1 ring-black/5 group-hover:ring-black/10 transition-all"
+                        style={{ aspectRatio: `${pin.imageWidth || 500} / ${pin.imageHeight || 750}` }}
+                    >
+                        <Image
                             src={pin.imageUrl}
                             alt={pin.title}
-                            className="w-full h-auto object-cover group-hover:brightness-75 transition-all duration-300"
+                            fill
+                            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, (max-width: 1280px) 25vw, 20vw"
+                            className="object-cover group-hover:brightness-75 transition-all duration-300"
+                            loading="lazy"
                         />
                     </div>
                 </Link>
@@ -201,6 +207,7 @@ const PinCard = ({ pin, onDeletePin, onRemoveFromBoard, optionsRotationDefault =
                         onOpenChange={setIsSaveMenuOpen}
                     />
                     <button
+                        aria-label="اشتراک‌گذاری پین"
                         onClick={() => {
                             const url = window.location.href
                             if (navigator.share) {
@@ -233,79 +240,32 @@ const PinCard = ({ pin, onDeletePin, onRemoveFromBoard, optionsRotationDefault =
                         onDownload={handleDownload}
                         isOwner={pin.isOwner ?? false}
                         rotationDefault={optionsRotationDefault}
-                        excludedOptions={menuExcluded}   
+                        excludedOptions={menuExcluded}
                     />
                 </div>
             </div>
 
-            {/* مودال ویرایش پین */}
+            {/* مودال ویرایش پین (dynamic) */}
             {isEditModalOpen && (
-                <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-[2px] flex items-center justify-center p-4">
-                    <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-md">
-                        <h2 className="text-lg font-bold text-gray-900 mb-5">ویرایش پین</h2>
-
-                        <label className="block text-xs font-semibold text-gray-500 mb-1.5">عنوان</label>
-                        <input
-                            type="text"
-                            value={editTitle}
-                            onChange={(e) => setEditTitle(e.target.value)}
-                            className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 mb-4 text-gray-900 placeholder-gray-400 focus:outline-none focus:border-red-400 focus:ring-4 focus:ring-red-100 transition-all"
-                            placeholder="عنوان"
-                        />
-
-                        <label className="block text-xs font-semibold text-gray-500 mb-1.5">توضیحات</label>
-                        <textarea
-                            value={editDescription}
-                            onChange={(e) => setEditDescription(e.target.value)}
-                            rows={4}
-                            className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 mb-6 text-gray-900 placeholder-gray-400 focus:outline-none focus:border-red-400 focus:ring-4 focus:ring-red-100 transition-all resize-none"
-                            placeholder="توضیحات"
-                        />
-
-                        <div className="flex gap-2.5">
-                            <button
-                                onClick={handleEdit}
-                                className="flex-1 h-11 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold text-sm transition-colors cursor-pointer"
-                            >
-                                ذخیره
-                            </button>
-                            <button
-                                onClick={() => setIsEditModalOpen(false)}
-                                className="flex-1 h-11 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold text-sm transition-colors cursor-pointer"
-                            >
-                                انصراف
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <EditPinModal
+                    pinId={pin.id}
+                    initialTitle={pin.title}
+                    initialDescription={pin.description}
+                    onClose={() => setIsEditModalOpen(false)}
+                />
             )}
 
-            {/* مودال تأیید حذف پین */}
+            {/* مودال حذف پین (dynamic) */}
             {isDeleteModalOpen && (
-                <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-[2px] flex items-center justify-center p-4">
-                    <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm text-center">
-                        <div className="w-14 h-14 mx-auto mb-4 bg-red-50 rounded-2xl flex items-center justify-center">
-                            <FiTrash2 className="text-red-600 text-xl" />
-                        </div>
-                        <h3 className="text-lg font-bold text-gray-900 mb-1.5">حذف پین</h3>
-                        <p className="text-gray-500 text-sm leading-relaxed mb-6">آیا مطمئن هستید که می‌خواهید این پین را حذف کنید؟</p>
-                        <div className="flex gap-2.5">
-                            <button
-                                onClick={handleDelete}
-                                disabled={isDeleting}
-                                className="flex-1 h-11 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                            >
-                                {isDeleting ? 'در حال حذف...' : 'حذف'}
-                            </button>
-                            <button
-                                onClick={() => setIsDeleteModalOpen(false)}
-                                className="flex-1 h-11 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold text-sm transition-colors cursor-pointer"
-                            >
-                                انصراف
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <DeletePinModal
+                    pinId={pin.id}
+                    onClose={() => setIsDeleteModalOpen(false)}
+                    onDeleteSuccess={(id) => {
+                        setShowDeletedToast(true)
+                        if (onDeletePin) onDeletePin(id)
+                        setTimeout(() => setShowDeletedToast(false), 2000)
+                    }}
+                />
             )}
 
             {/* توست حذف موفق */}

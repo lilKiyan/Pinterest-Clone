@@ -65,7 +65,7 @@ export default function Home() {
           })
         }
       },
-      { rootMargin: '50px'}
+      { rootMargin: '50px' }
     )
 
     if (sentinelRef.current) {
@@ -108,7 +108,7 @@ export default function Home() {
       ) : (
         <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4 space-y-4">
           {pins.map((pin) => (
-            <PinCard key={pin.id} pin={pin} optionsRotationDefault={-80}  />
+            <PinCard key={pin.id} pin={pin} optionsRotationDefault={-80} />
           ))}
         </div>
       )}
@@ -123,7 +123,7 @@ export default function Home() {
       )}
 
       {!hasMore && pins.length > 0 && (
-        <div className="flex flex-col items-center justify-center gap-2.5 py-10">
+        <div className="flex flex-col items-center justify-center gap-2.5 py-10 mb-10 md:mb-0">
           <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center">
             <FiCheckCircle className="w-5 h-5 text-red-500" />
           </div>

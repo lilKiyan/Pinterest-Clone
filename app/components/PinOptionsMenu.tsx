@@ -140,6 +140,7 @@ const PinOptionsMenu = ({ onEdit, onDelete, onDownload, isOwner = false, rotatio
             <button
                 ref={triggerRef}
                 onClick={handleToggle}
+                aria-label="گزینه‌های پین"
                 className="group/three-dot relative z-20 px-1.5 py-1.5 rounded-full hover:bg-gray-100 transition-all duration-200 cursor-pointer"
             >
                 <FiMoreHorizontal

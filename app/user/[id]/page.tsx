@@ -5,11 +5,13 @@ import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import PinCard from '@/app/components/PinCard'
 import { useAuthStore } from '@/lib/authStore'
+
 import {
     FiArrowRight,
     FiAtSign,
     FiImage,
     FiGrid,
+    FiMessageCircle,
     FiUserPlus,
     FiCheck,
     FiSettings,
@@ -69,6 +71,29 @@ export default function UserProfilePage() {
             console.error(error)
         } finally {
             setFollowLoading(false)
+        }
+    }
+
+    // ✅ تابع شروع گفتگو
+    const handleMessage = async () => {
+        if (!currentUser) {
+            router.push('/login')
+            return
+        }
+        try {
+            const res = await fetch('/api/conversations', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: profileUser.id }),
+            })
+            if (!res.ok) throw new Error('خطا در شروع گفتگو')
+            const data = await res.json()
+            if (data.conversation?.id) {
+                router.push(`/messages/${data.conversation.id}`)
+            }
+        } catch (err) {
+            console.error(err)
+            // در صورت نیاز می‌توان خطا را نمایش داد
         }
     }
 
@@ -202,24 +227,34 @@ export default function UserProfilePage() {
                                 ویرایش پروفایل
                             </Link>
                         ) : (
-                            <button
-                                onClick={handleFollow}
-                                disabled={followLoading}
-                                className={`inline-flex items-center gap-2 text-sm font-bold px-7 py-2.5 rounded-full transition-all cursor-pointer active:scale-95 ${
-                                    isFollowed
-                                        ? 'text-gray-700 bg-white ring-1 ring-gray-300 hover:ring-gray-400 shadow-sm'
-                                        : 'text-white bg-gray-900 hover:bg-black shadow-lg shadow-gray-300/60 hover:-translate-y-0.5'
-                                } ${followLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
-                            >
-                                {followLoading ? (
-                                    <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin opacity-70" />
-                                ) : isFollowed ? (
-                                    <FiCheck className="w-4 h-4" />
-                                ) : (
-                                    <FiUserPlus className="w-4 h-4" />
-                                )}
-                                {isFollowed ? 'دنبال می‌کنید' : 'دنبال کردن'}
-                            </button>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={handleFollow}
+                                    disabled={followLoading}
+                                    className={`inline-flex items-center gap-2 text-sm font-bold px-7 py-2.5 rounded-full transition-all cursor-pointer active:scale-95 ${
+                                        isFollowed
+                                            ? 'text-gray-700 bg-white ring-1 ring-gray-300 hover:ring-gray-400 shadow-sm'
+                                            : 'text-white bg-gray-900 hover:bg-black shadow-lg shadow-gray-300/60 hover:-translate-y-0.5'
+                                    } ${followLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                >
+                                    {followLoading ? (
+                                        <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin opacity-70" />
+                                    ) : isFollowed ? (
+                                        <FiCheck className="w-4 h-4" />
+                                    ) : (
+                                        <FiUserPlus className="w-4 h-4" />
+                                    )}
+                                    {isFollowed ? 'دنبال می‌کنید' : 'دنبال کردن'}
+                                </button>
+
+                                <button
+                                    onClick={handleMessage}
+                                    className="inline-flex items-center gap-2 text-sm font-bold px-6 py-2.5 rounded-full text-gray-700 bg-white ring-1 ring-gray-300 hover:ring-gray-400 hover:bg-gray-50 transition-all cursor-pointer active:scale-95 shadow-sm"
+                                >
+                                    <FiMessageCircle className="w-4 h-4 text-gray-400" />
+                                    پیام
+                                </button>
+                            </div>
                         )}
                     </div>
                 </div>

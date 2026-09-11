@@ -1,44 +1,55 @@
 "use client"
 
-import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import PinCard from '../../components/PinCard'
 import { FiArrowRight, FiGrid } from 'react-icons/fi'
 
 export default function BoardPage() {
     const { id } = useParams<{ id: string }>()
     const router = useRouter()
+    const queryClient = useQueryClient()
 
-    const [board, setBoard] = useState<any>(null)
-    const [pins, setPins] = useState<any[]>([])
-    const [loading, setLoading] = useState(true)
-
-    const fetchBoard = async () => {
-        try {
+    const {
+        data: board,
+        isLoading: loading,
+        isError,
+    } = useQuery({
+        queryKey: ['board', id],
+        queryFn: async () => {
             const res = await fetch(`/api/boards/${id}`)
-            if (!res.ok) throw new Error('خطا')
-            const data = await res.json()
-            setBoard(data)
-            setPins(data.pins || [])
-        } catch (error) {
-            console.error(error)
-        } finally {
-            setLoading(false)
-        }
-    }
+            if (!res.ok) throw new Error('برد یافت نشد')
+            return res.json()
+        },
+        enabled: !!id,
+        staleTime: 60 * 1000,
+    })
 
-    useEffect(() => {
-        if (id) fetchBoard()
-    }, [id])
+    const pins = board?.pins ?? []
+
+    // حذف پین از cache محلی
+    const removePinFromCache = (pinId: string) => {
+        queryClient.setQueryData(['board', id], (old: any) => {
+            if (!old) return old
+            return {
+                ...old,
+                pins: (old.pins || []).filter((p: any) => p.id !== pinId),
+            }
+        })
+    }
 
     // حذف پین (مالک پین)
     const handleDeletePin = (pinId: string) => {
-        setPins((prev) => prev.filter((p) => p.id !== pinId))
+        removePinFromCache(pinId)
+        queryClient.invalidateQueries({ queryKey: ['pins'] })
+        queryClient.invalidateQueries({ queryKey: ['my-pins'] })
     }
 
     // حذف ذخیره از این برد
     const handleRemovePinFromBoard = (pinId: string) => {
-        setPins((prev) => prev.filter((p) => p.id !== pinId))
+        removePinFromCache(pinId)
+        queryClient.invalidateQueries({ queryKey: ['saved-pins'] })
+        queryClient.invalidateQueries({ queryKey: ['boards'] })
     }
 
     if (loading) {
@@ -49,13 +60,13 @@ export default function BoardPage() {
         )
     }
 
-    if (!board) {
+    if (isError || !board) {
         return (
             <main className="text-center py-20 text-gray-500">
                 برد یافت نشد.
                 <button
                     onClick={() => router.back()}
-                    className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-red-600 hover:text-red-700 transition-colors"
+                    className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-red-600 hover:text-red-700 transition-colors cursor-pointer"
                 >
                     <FiArrowRight className="w-4 h-4" />
                     بازگشت
@@ -70,6 +81,7 @@ export default function BoardPage() {
                 <div className="flex items-center gap-2">
                     <button
                         onClick={() => router.back()}
+                        aria-label="بازگشت"
                         className="group relative inline-flex items-center justify-center w-10 h-8 rounded-xl bg-white/80 backdrop-blur-md shadow-lg shadow-gray-200/50 ring-1 ring-black/5 hover:ring-red-200 hover:shadow-red-100/50 transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer"
                     >
                         <FiArrowRight className="w-4 h-4 text-gray-600 group-hover:text-red-600 transition-colors" />
@@ -93,7 +105,7 @@ export default function BoardPage() {
                             key={pin.id}
                             pin={pin}
                             onDeletePin={handleDeletePin}
-                            optionsRotationDefault={-125} 
+                            optionsRotationDefault={-125}
                             onRemoveFromBoard={handleRemovePinFromBoard}
                         />
                     ))}
