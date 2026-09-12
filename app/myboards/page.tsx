@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import dynamic from 'next/dynamic'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import PinCard from '../components/PinCard'
 import BoardCard from '../components/BoardCard'
 import { FiPlus, FiGrid, FiBookmark, FiFolder, FiImage } from 'react-icons/fi'
@@ -13,66 +14,47 @@ type Tab = 'my-pins' | 'saved-pins' | 'boards'
 
 export default function MyBoardsPage() {
     const [activeTab, setActiveTab] = useState<Tab>('my-pins')
-    const [myPins, setMyPins] = useState<any[]>([])
-    const [savedPins, setSavedPins] = useState<any[]>([])
-    const [boards, setBoards] = useState<any[]>([])
-
-    const [loadingMyPins, setLoadingMyPins] = useState(true)
-    const [loadingSavedPins, setLoadingSavedPins] = useState(true)
-    const [loadingBoards, setLoadingBoards] = useState(true)
-
-    // state های UI مودال‌ها (منطق در خود مودال‌هاست)
     const [isBoardModalOpen, setIsBoardModalOpen] = useState(false)
     const [editingBoard, setEditingBoard] = useState<any>(null)
     const [boardToDelete, setBoardToDelete] = useState<any>(null)
 
-    const fetchMyPins = async () => {
-        setLoadingMyPins(true)
-        try {
+    const queryClient = useQueryClient()
+
+    const { data: myPins = [], isLoading: loadingMyPins } = useQuery<any[]>({
+        queryKey: ['my-pins'],
+        queryFn: async () => {
             const res = await fetch('/api/pins/mine')
             if (!res.ok) throw new Error('خطا در دریافت پین‌های من')
             const data = await res.json()
-            setMyPins(data)
-        } catch (error) {
-            console.error(error)
-        } finally {
-            setLoadingMyPins(false)
-        }
-    }
+            return data
+        },
+        staleTime: 60 * 1000,
+    })
 
-    const fetchSavedPins = async () => {
-        setLoadingSavedPins(true)
-        try {
+    const { data: savedPins = [], isLoading: loadingSavedPins } = useQuery<any[]>({
+        queryKey: ['saved-pins'],
+        queryFn: async () => {
             const res = await fetch('/api/saves')
             if (!res.ok) throw new Error('خطا در دریافت پین‌های ذخیره‌شده')
             const data = await res.json()
-            setSavedPins(data)
-        } catch (error) {
-            console.error(error)
-        } finally {
-            setLoadingSavedPins(false)
-        }
-    }
+            return data
+        },
+        staleTime: 60 * 1000,
+    })
 
-    const fetchBoards = async () => {
-        setLoadingBoards(true)
-        try {
+    const {
+        data: boards = [],
+        isLoading: loadingBoards,
+    } = useQuery<any[]>({
+        queryKey: ['boards'],
+        queryFn: async () => {
             const res = await fetch('/api/boards')
             if (!res.ok) throw new Error('خطا در دریافت بردها')
-            const data = await res.json()
-            setBoards(data)
-        } catch (error) {
-            console.error(error)
-        } finally {
-            setLoadingBoards(false)
-        }
-    }
+            return res.json()
+        },
+        staleTime: 60 * 1000,
+    })
 
-    useEffect(() => {
-        fetchMyPins()
-        fetchSavedPins()
-        fetchBoards()
-    }, [])
 
     // فقط UI مودال رو باز می‌کنیم، منطق ذخیره توی خود مودال انجام می‌شه
     const openCreateBoardModal = () => {
@@ -88,6 +70,21 @@ export default function MyBoardsPage() {
     const closeBoardModal = () => {
         setIsBoardModalOpen(false)
         setEditingBoard(null)
+    }
+
+    const handleBoardSaved = () => {
+        queryClient.invalidateQueries({ queryKey: ['boards'] })
+    }
+
+    // ── callback بعد از حذف برد ──
+    const handleBoardDeleted = (boardId: string) => {
+        // آپدیت فوری cache (Optimistic)
+        queryClient.setQueryData<any[]>(['boards'], (old) => {
+            if (!old) return old
+            return old.filter((b) => b.id !== boardId)
+        })
+        // invalidate برای همگام‌سازی با سرور (دفعه بعد که کاربر برگرده)
+        queryClient.invalidateQueries({ queryKey: ['boards'] })
     }
 
     const renderPins = (pins: any[], loading: boolean, emptyMessage: string) => (
@@ -204,23 +201,21 @@ export default function MyBoardsPage() {
                 {activeTab === 'saved-pins' && renderPins(savedPins, loadingSavedPins, 'هنوز پینی ذخیره نکردی.')}
                 {activeTab === 'boards' && renderBoards()}
 
-                {/* مودال ساخت/ویرایش برد (dynamic) */}
+                {/* مودال ساخت/ویرایش برد */}
                 {isBoardModalOpen && (
                     <CreateEditBoardModal
                         editingBoard={editingBoard}
                         onClose={closeBoardModal}
-                        onSave={fetchBoards}
+                        onSave={handleBoardSaved}
                     />
                 )}
 
-                {/* مودال حذف برد (dynamic) */}
+                {/* مودال حذف برد */}
                 {boardToDelete && (
                     <DeleteBoardModal
                         board={boardToDelete}
                         onClose={() => setBoardToDelete(null)}
-                        onDeleted={(id) => {
-                            setBoards((prev) => prev.filter((b) => b.id !== id))
-                        }}
+                        onDeleted={handleBoardDeleted}
                     />
                 )}
             </div>

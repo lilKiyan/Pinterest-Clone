@@ -43,7 +43,7 @@ export async function GET(request: Request) {
                 createdAt: pin.createdAt,
                 updatedAt: pin.updatedAt,
                 userId: pin.userId,
-                isOwner: user ? pin.userId === user.id : false,
+                isOwner: false,
                 isSavedByMe: userSaves.length > 0,
                 savedBoards: userSaves.map((s) => ({
                     boardId: s.boardId,

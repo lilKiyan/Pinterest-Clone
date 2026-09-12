@@ -1,11 +1,12 @@
 "use client"
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/authStore'
 import Link from 'next/link'
 import Image from 'next/image'
 import dynamic from 'next/dynamic'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 const PinCard = dynamic(() => import('@/app/components/PinCard'), {
     ssr: false,
@@ -44,203 +45,262 @@ import {
     FiGrid,
 } from 'react-icons/fi'
 
+type SavedBoard = { boardId: string; boardName: string }
+
+type PinResponse = {
+    pin: {
+        id: string
+        title: string
+        description?: string
+        imageUrl: string
+        imageWidth?: number
+        imageHeight?: number
+        createdAt: string
+        userId: string
+        isOwner: boolean
+        totalSaves: number
+        totalLikes: number
+        isLikedByMe: boolean
+        savedBoards: SavedBoard[]
+        owner: {
+            id: string
+            name: string
+            username: string
+            avatar: string | null
+        }
+    }
+}
+
 export default function PinDetailPage() {
     const { id } = useParams<{ id: string }>()
     const router = useRouter()
     const { user } = useAuthStore()
-
-    const [pin, setPin] = useState<any>(null)
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState('')
+    const queryClient = useQueryClient()
 
     const [saveOpen, setSaveOpen] = useState(false)
-    const [boards, setBoards] = useState<any[]>([])
-    const [savedBoards, setSavedBoards] = useState<{ boardId: string; boardName: string }[]>([])
-    const [loadingBoards, setLoadingBoards] = useState(false)
-    const [isFollowed, setIsFollowed] = useState(false)
-    const [followersCount, setFollowersCount] = useState(0)
-    const [followLoading, setFollowLoading] = useState(false)
-
-    // state های لایک
-    const [isLiked, setIsLiked] = useState(false)
-    const [totalLikes, setTotalLikes] = useState(0)
-
-    const [relatedPins, setRelatedPins] = useState<any[]>([])
-    const [loadingRelated, setLoadingRelated] = useState(true)
-
     const [toast, setToast] = useState('')
 
-    useEffect(() => {
-        const fetchPin = async () => {
-            try {
-                const res = await fetch(`/api/pins/${id}`)
-                if (!res.ok) throw new Error('پین یافت نشد')
-                const data = await res.json()
-                setPin(data.pin)
-                setSavedBoards(data.pin.savedBoards || [])
-                setIsLiked(data.pin.isLikedByMe || false)
-                setTotalLikes(data.pin.totalLikes || 0)
-            } catch (err) {
-                setError(err instanceof Error ? err.message : 'خطا')
-            } finally {
-                setLoading(false)
-            }
-        }
-        if (id) fetchPin()
-    }, [id])
+    // ═══════════════ QUERIES ═══════════════
 
-    const fetchBoards = async () => {
-        if (!user) return
-        setLoadingBoards(true)
-        try {
+    // ── Query ۱: اطلاعات پین ──
+    const {
+        data: pinData,
+        isLoading: loading,
+        isError,
+        error,
+    } = useQuery<PinResponse>({
+        queryKey: ['pin', id],
+        queryFn: async () => {
+            const res = await fetch(`/api/pins/${id}`)
+            if (!res.ok) throw new Error('پین یافت نشد')
+            return res.json()
+        },
+        enabled: !!id,
+        staleTime: 60 * 1000,
+    })
+
+    const pin = pinData?.pin
+    const savedBoards = pin?.savedBoards ?? []
+    const isLiked = pin?.isLikedByMe ?? false
+    const totalLikes = pin?.totalLikes ?? 0
+
+    // ── Query ۲: بردهای کاربر (فقط وقتی دراپ‌داون بازه) ──
+    const { data: boardsRaw = [], isLoading: loadingBoards } = useQuery<any[]>({
+        queryKey: ['boards'],
+        queryFn: async () => {
             const res = await fetch('/api/boards')
-            if (res.ok) {
-                const data = await res.json()
-                setBoards(data.map((b: any) => ({
-                    id: b.id,
-                    name: b.name,
-                    thumbnail: b.pins?.[0]?.imageUrl || '/placeholder.jpg',
-                })))
-            }
-        } catch (error) {
-            console.error(error)
-        } finally {
-            setLoadingBoards(false)
-        }
-    }
+            if (!res.ok) throw new Error('خطا')
+            return res.json()
+        },
+        enabled: !!user && saveOpen,
+        staleTime: 60 * 1000,
+    })
 
-    const toggleSave = async () => {
-        if (!user) {
-            router.push('/login')
-            return
-        }
-        if (!saveOpen) {
-            await fetchBoards()
-        }
-        setSaveOpen(prev => !prev)
-    }
+    const boards = boardsRaw.map((b) => ({
+        id: b.id,
+        name: b.name,
+        thumbnail: b.pins?.[0]?.imageUrl || '/placeholder.jpg',
+    }))
 
-    const handleToggleBoard = async (boardId: string, boardName: string) => {
-        const isSaved = savedBoards.some(sb => sb.boardId === boardId)
-        try {
-            if (isSaved) {
-                const res = await fetch('/api/saves', {
-                    method: 'DELETE',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ pinId: pin.id, boardId }),
-                })
-                if (res.ok) {
-                    setSavedBoards(prev => prev.filter(sb => sb.boardId !== boardId))
-                }
-            } else {
-                const res = await fetch('/api/saves', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ pinId: pin.id, boardId }),
-                })
-                if (res.ok) {
-                    setSavedBoards(prev => [...prev, { boardId, boardName }])
-                }
-            }
-        } catch (error) {
-            console.error(error)
-        }
-    }
-
-    // تابع لایک
-    const handleLike = async () => {
-        if (!user) {
-            router.push('/login')
-            return
-        }
-        try {
-            const res = await fetch(`/api/pins/${pin.id}/like`, {
-                method: 'POST',
-            })
+    // ── Query ۳: پین‌های مرتبط ──
+    const { data: relatedPins = [], isLoading: loadingRelated } = useQuery<any[]>({
+        queryKey: ['related-pins', id],
+        queryFn: async () => {
+            const res = await fetch(`/api/pins/${id}/related`)
             if (!res.ok) throw new Error('خطا')
             const data = await res.json()
-            setIsLiked(data.isLiked)
-            setTotalLikes(data.totalLikes)
-        } catch (error) {
-            console.error(error)
-        }
-    }
+            return data.pins || []
+        },
+        enabled: !!id,
+        staleTime: 5 * 60 * 1000,
+    })
 
-    useEffect(() => {
-        if (pin) {
-            fetchRelatedPins(pin.userId)
-        }
-    }, [pin])
+    // ── Query ۴: وضعیت فالو کاربر مقابل ──
+    const { data: followData } = useQuery<{
+        isFollowing: boolean
+        followersCount: number
+    }>({
+        queryKey: ['follow-status', pin?.userId],
+        queryFn: async () => {
+            const res = await fetch(`/api/users/${pin!.userId}/follow`)
+            if (!res.ok) throw new Error('خطا')
+            return res.json()
+        },
+        enabled: !!pin?.userId && !!user,
+        staleTime: 60 * 1000,
+    })
 
-    const fetchRelatedPins = async (userId: string) => {
-        setLoadingRelated(true)
-        try {
-            const res = await fetch(`/api/pins/${id}/related`)
-            if (res.ok) {
-                const data = await res.json()
-                setRelatedPins(data.pins || [])
+    const isFollowed = followData?.isFollowing ?? false
+    const followersCount = followData?.followersCount ?? 0
+
+    // ═══════════════ MUTATIONS ═══════════════
+
+    // ── Mutation: لایک (با Optimistic Update) ──
+    const likeMutation = useMutation({
+        mutationFn: async () => {
+            const res = await fetch(`/api/pins/${pin!.id}/like`, { method: 'POST' })
+            if (!res.ok) throw new Error('خطا در لایک')
+            return res.json() as Promise<{ isLiked: boolean; totalLikes: number }>
+        },
+        onMutate: async () => {
+            // جلوی fetch های در حال اجرا رو بگیر
+            await queryClient.cancelQueries({ queryKey: ['pin', id] })
+
+            // وضعیت فعلی cache رو نگه دار
+            const previous = queryClient.getQueryData<PinResponse>(['pin', id])
+
+            // UI رو فوری آپدیت کن (Optimistic)
+            queryClient.setQueryData<PinResponse>(['pin', id], (old) => {
+                if (!old) return old
+                const wasLiked = old.pin.isLikedByMe
+                return {
+                    ...old,
+                    pin: {
+                        ...old.pin,
+                        isLikedByMe: !wasLiked,
+                        totalLikes: wasLiked ? old.pin.totalLikes - 1 : old.pin.totalLikes + 1,
+                    },
+                }
+            })
+
+            return { previous }
+        },
+        onError: (_err, _vars, context) => {
+            // اگه خطا داد، UI رو برگردون به حالت قبل
+            if (context?.previous) {
+                queryClient.setQueryData(['pin', id], context.previous)
             }
-        } catch (error) {
-            console.error(error)
-        } finally {
-            setLoadingRelated(false)
-        }
-    }
+        },
+        onSettled: () => {
+            // در هر صورت، با سرور همگام کن
+            queryClient.invalidateQueries({ queryKey: ['pin', id] })
+        },
+    })
 
+    // ── Mutation: فالو/آنفالو ──
+    const followMutation = useMutation({
+        mutationFn: async () => {
+            const res = await fetch(`/api/users/${pin!.userId}/follow`, { method: 'POST' })
+            if (!res.ok) throw new Error('خطا در فالو')
+            return res.json() as Promise<{ isFollowing: boolean; followersCount: number }>
+        },
+        onSuccess: (data) => {
+            queryClient.setQueryData(['follow-status', pin!.userId], data)
+        },
+    })
 
-    useEffect(() => {
-        if (pin && user) {
-            fetchFollowStatus(pin.userId)
-        }
-    }, [pin, user])
+    // ── Mutation: ذخیره/حذف از برد (با Optimistic Update) ──
+    const saveMutation = useMutation({
+        mutationFn: async ({ boardId, isSaved }: { boardId: string; isSaved: boolean }) => {
+            const res = await fetch('/api/saves', {
+                method: isSaved ? 'DELETE' : 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pinId: pin!.id, boardId }),
+            })
+            if (!res.ok) throw new Error('خطا در ذخیره')
+            return { boardId, isSaved }
+        },
+        onMutate: async ({ boardId, isSaved }) => {
+            await queryClient.cancelQueries({ queryKey: ['pin', id] })
+            const previous = queryClient.getQueryData<PinResponse>(['pin', id])
 
-    const fetchFollowStatus = async (userId: string) => {
-        try {
-            const res = await fetch(`/api/users/${userId}/follow`)
-            if (res.ok) {
-                const data = await res.json()
-                setIsFollowed(data.isFollowing)
-                setFollowersCount(data.followersCount)
+            queryClient.setQueryData<PinResponse>(['pin', id], (old) => {
+                if (!old) return old
+                let newSavedBoards: SavedBoard[]
+                if (isSaved) {
+                    newSavedBoards = old.pin.savedBoards.filter((sb) => sb.boardId !== boardId)
+                } else {
+                    const board = boards.find((b) => b.id === boardId)
+                    newSavedBoards = [
+                        ...old.pin.savedBoards,
+                        { boardId, boardName: board?.name || '' },
+                    ]
+                }
+                return {
+                    ...old,
+                    pin: { ...old.pin, savedBoards: newSavedBoards },
+                }
+            })
+
+            return { previous }
+        },
+        onError: (_err, _vars, context) => {
+            if (context?.previous) {
+                queryClient.setQueryData(['pin', id], context.previous)
             }
-        } catch (error) {
-            console.error(error)
-        }
-    }
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ['pin', id] })
+            queryClient.invalidateQueries({ queryKey: ['saved-pins'] })
+            queryClient.invalidateQueries({ queryKey: ['boards'] })
+        },
+    })
 
-    const handleFollow = async () => {
+    // ═══════════════ HANDLERS ═══════════════
+
+    const toggleSave = () => {
         if (!user) {
             router.push('/login')
             return
         }
-        if (followLoading) return
+        setSaveOpen((prev) => !prev)
+    }
 
-        setFollowLoading(true)
-        try {
-            const res = await fetch(`/api/users/${pin.userId}/follow`, {
-                method: 'POST',
-            })
-            if (res.ok) {
-                const data = await res.json()
-                setIsFollowed(data.isFollowing)
-                setFollowersCount(data.followersCount)
-            }
-        } catch (error) {
-            console.error(error)
-        } finally {
-            setFollowLoading(false)
+    const handleToggleBoard = (boardId: string, boardName: string) => {
+        const isSaved = savedBoards.some((sb) => sb.boardId === boardId)
+        saveMutation.mutate({ boardId, isSaved })
+    }
+
+    const handleLike = () => {
+        if (!user) {
+            router.push('/login')
+            return
         }
+        likeMutation.mutate()
+    }
+
+    const handleFollow = () => {
+        if (!user) {
+            router.push('/login')
+            return
+        }
+        followMutation.mutate()
+    }
+
+    const showToast = (message: string) => {
+        setToast(message)
+        setTimeout(() => setToast(''), 2000)
     }
 
     const handleShare = async () => {
         const url = window.location.href
-        const title = pin.title
+        const title = pin!.title
 
         if (navigator.share) {
             try {
                 await navigator.share({ title, url })
                 return
-            } catch (err) {
-                // کاربر انصراف داده یا خطا
+            } catch {
                 return
             }
         }
@@ -260,15 +320,12 @@ export default function PinDetailPage() {
                 document.body.removeChild(textarea)
             }
             showToast('لینک کپی شد !')
-        } catch (err) {
+        } catch {
             showToast('کپی لینک ناموفق بود')
         }
     }
 
-    const showToast = (message: string) => {
-        setToast(message)
-        setTimeout(() => setToast(''), 2000)
-    }
+    // ═══════════════ RENDER ═══════════════
 
     if (loading) {
         return (
@@ -281,14 +338,16 @@ export default function PinDetailPage() {
         )
     }
 
-    if (error || !pin) {
+    if (isError || !pin) {
         return (
             <main dir="rtl" className="min-h-screen flex flex-col items-center justify-center gap-5 px-4 bg-gradient-to-br from-red-50 via-white to-orange-50">
                 <div className="w-20 h-20 rounded-3xl bg-white shadow-lg ring-1 ring-black/5 flex items-center justify-center">
                     <FiFolder className="w-9 h-9 text-red-300" />
                 </div>
                 <div className="text-center">
-                    <p className="text-gray-800 font-bold text-xl mb-1">{error || 'پین یافت نشد'}</p>
+                    <p className="text-gray-800 font-bold text-xl mb-1">
+                        {(error as Error)?.message || 'پین یافت نشد'}
+                    </p>
                     <p className="text-gray-400 text-sm">ممکن است این پین حذف شده یا آدرس اشتباه باشد</p>
                 </div>
                 <Link
@@ -325,7 +384,7 @@ export default function PinDetailPage() {
                                     alt={pin.title}
                                     width={pin.imageWidth || 800}
                                     height={pin.imageHeight || 1200}
-                                    sizes='(max-width:1021px) 100vw, 50vw'
+                                    sizes="(max-width:1021px) 100vw, 50vw"
                                     priority
                                     style={{ width: '100%', height: 'auto' }}
                                     className="w-full max-h-[85vh] object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]"
@@ -358,7 +417,6 @@ export default function PinDetailPage() {
                                         <p className="text-sm text-gray-400 truncate text-right" dir='ltr'>
                                             @{pin.owner?.username}
                                         </p>
-                                        {/* ✅ تعداد دنبال‌کننده */}
                                         <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
                                             <FiUserPlus className="w-3 h-3" />
                                             {followersCount} دنبال‌کننده
@@ -377,13 +435,14 @@ export default function PinDetailPage() {
                                 ) : (
                                     <button
                                         onClick={handleFollow}
-                                        disabled={followLoading}
-                                        className={`shrink-0 flex items-center gap-1.5 px-4 py-2.5 rounded-full font-semibold text-xs transition-all ${isFollowed
-                                            ? 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                            : 'bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-200/70'
-                                            } ${followLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                        disabled={followMutation.isPending}
+                                        className={`shrink-0 flex items-center gap-1.5 px-4 py-2.5 rounded-full font-semibold text-xs transition-all ${
+                                            isFollowed
+                                                ? 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                                : 'bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-200/70'
+                                        } ${followMutation.isPending ? 'opacity-60 cursor-not-allowed' : ''}`}
                                     >
-                                        {followLoading ? (
+                                        {followMutation.isPending ? (
                                             <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
                                         ) : isFollowed ? (
                                             <FiCheck className="w-3.5 h-3.5" />
@@ -413,10 +472,11 @@ export default function PinDetailPage() {
                                     <button
                                         onClick={handleLike}
                                         title={isLiked ? 'حذف لایک' : 'لایک'}
-                                        className={`relative group flex items-center gap-2 px-4 py-2.5 rounded-full font-bold text-sm transition-all duration-300 cursor-pointer active:scale-95 ${isLiked
-                                            ? 'bg-red-50 text-red-600 ring-1 ring-red-200'
-                                            : 'bg-gray-50 text-gray-600 ring-1 ring-gray-200 hover:bg-red-50 hover:text-red-600 hover:ring-red-200'
-                                            }`}
+                                        className={`relative group flex items-center gap-2 px-4 py-2.5 rounded-full font-bold text-sm transition-all duration-300 cursor-pointer active:scale-95 ${
+                                            isLiked
+                                                ? 'bg-red-50 text-red-600 ring-1 ring-red-200'
+                                                : 'bg-gray-50 text-gray-600 ring-1 ring-gray-200 hover:bg-red-50 hover:text-red-600 hover:ring-red-200'
+                                        }`}
                                     >
                                         {isLiked && (
                                             <span key="burst" className="pointer-events-none absolute inset-0 flex items-center justify-center">
@@ -434,10 +494,11 @@ export default function PinDetailPage() {
                                         )}
                                         <FiHeart
                                             key={isLiked ? 'liked' : 'unliked'}
-                                            className={`w-[18px] h-[18px] transition-colors ${isLiked
-                                                ? 'text-red-600 fill-red-600 animate-[likePop_0.45s_ease-out]'
-                                                : 'text-gray-400 group-hover:text-red-500'
-                                                }`}
+                                            className={`w-[18px] h-[18px] transition-colors ${
+                                                isLiked
+                                                    ? 'text-red-600 fill-red-600 animate-[likePop_0.45s_ease-out]'
+                                                    : 'text-gray-400 group-hover:text-red-500'
+                                            }`}
                                         />
                                         <span className="tabular-nums">{totalLikes}</span>
                                     </button>
@@ -466,17 +527,18 @@ export default function PinDetailPage() {
                                 </div>
                             </div>
 
-                            {/* ═══ بخش کامنت‌ها ═══ */}
+                            {/* بخش کامنت‌ها */}
                             <PinComments pinId={pin.id} />
 
                             {/* دکمه ذخیره و منوی بردها */}
                             <div className="relative p-6 mt-auto bg-gradient-to-t from-gray-50/80 to-transparent">
                                 <button
                                     onClick={toggleSave}
-                                    className={`w-full flex items-center justify-between gap-2 px-4 py-4 rounded-2xl font-bold transition-all ${savedBoards.length > 0
-                                        ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-lg shadow-red-300/50 hover:shadow-xl hover:shadow-red-300/60 hover:brightness-105'
-                                        : 'bg-gray-900 text-white shadow-lg shadow-gray-300/50 hover:bg-black hover:shadow-xl'
-                                        }`}
+                                    className={`w-full text-sm md:text-lg flex items-center justify-between gap-2 px-4 py-4 rounded-2xl font-bold transition-all ${
+                                        savedBoards.length > 0
+                                            ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-lg shadow-red-300/50 hover:shadow-xl hover:shadow-red-300/60 hover:brightness-105'
+                                            : 'bg-gray-900 text-white shadow-lg shadow-gray-300/50 hover:bg-black hover:shadow-xl'
+                                    }`}
                                 >
                                     <span className="flex items-center gap-2.5">
                                         <FiBookmark className="w-5 h-5" />
@@ -515,16 +577,15 @@ export default function PinDetailPage() {
                                             </div>
                                         ) : (
                                             <div className="space-y-0.5">
-                                                {boards.map(board => {
-                                                    const isSaved = savedBoards.some(sb => sb.boardId === board.id)
+                                                {boards.map((board) => {
+                                                    const isSaved = savedBoards.some((sb) => sb.boardId === board.id)
                                                     return (
                                                         <button
                                                             key={board.id}
                                                             onClick={() => handleToggleBoard(board.id, board.name)}
-                                                            className={`w-full cursor-pointer flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-right ${isSaved
-                                                                ? 'bg-red-50/80 text-red-700'
-                                                                : 'hover:bg-gray-50'
-                                                                }`}
+                                                            className={`w-full cursor-pointer flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-right ${
+                                                                isSaved ? 'bg-red-50/80 text-red-700' : 'hover:bg-gray-50'
+                                                            }`}
                                                         >
                                                             <Image
                                                                 src={board.thumbnail}
@@ -535,10 +596,9 @@ export default function PinDetailPage() {
                                                             />
                                                             <span className="flex-1 font-semibold text-sm truncate">{board.name}</span>
                                                             <span
-                                                                className={`w-6 h-6 shrink-0 rounded-full flex items-center justify-center transition-all ${isSaved
-                                                                    ? 'bg-red-600 scale-100'
-                                                                    : 'bg-gray-200 scale-90 opacity-0 group-hover:opacity-100'
-                                                                    }`}
+                                                                className={`w-6 h-6 shrink-0 rounded-full flex items-center justify-center transition-all ${
+                                                                    isSaved ? 'bg-red-600 scale-100' : 'bg-gray-200 scale-90 opacity-0 group-hover:opacity-100'
+                                                                }`}
                                                             >
                                                                 {isSaved && <FiCheck className="w-3.5 h-3.5 text-white" />}
                                                             </span>
@@ -556,7 +616,7 @@ export default function PinDetailPage() {
             </div>
 
             {relatedPins.length > 0 && (
-                <section className="mt-12">
+                <section className="mt-12 px-6">
                     <div className="flex items-center gap-3 mb-6">
                         <div className="w-10 h-10 rounded-2xl bg-red-50 flex items-center justify-center">
                             <FiGrid className="w-5 h-5 text-red-600" />
@@ -572,14 +632,13 @@ export default function PinDetailPage() {
                         </div>
                     ) : (
                         <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4 space-y-4">
-                            {relatedPins.map(p => (
+                            {relatedPins.map((p) => (
                                 <PinCard key={p.id} pin={p} optionsRotationDefault={-80} />
                             ))}
                         </div>
                     )}
                 </section>
             )}
-
 
             {toast && (
                 <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[300] animate-[fadeInUp_0.3s_ease-out]">
@@ -622,8 +681,6 @@ export default function PinDetailPage() {
                     to { opacity: 0; }
                 }
             `}</style>
-
-
         </main>
     )
 }
