@@ -1,10 +1,10 @@
 "use client"
 
-import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import PinCard from '@/app/components/PinCard'
 import { useAuthStore } from '@/lib/authStore'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import {
     FiArrowRight,
@@ -17,84 +17,103 @@ import {
     FiSettings,
 } from 'react-icons/fi'
 
+type UserProfile = {
+    id: string
+    name: string
+    username: string
+    avatar: string | null
+    bio: string | null
+    isFollowing: boolean
+    followersCount: number
+    followingCount: number
+}
+
+type ProfileResponse = {
+    user: UserProfile
+    pins: any[]
+}
+
 export default function UserProfilePage() {
     const { id } = useParams<{ id: string }>()
     const router = useRouter()
-    const { user: currentUser, setUser } = useAuthStore()
+    const { user: currentUser } = useAuthStore()
+    const queryClient = useQueryClient()
 
-    const [profileUser, setProfileUser] = useState<any>(null)
-    const [pins, setPins] = useState<any[]>([])
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState('')
-    const [isFollowed, setIsFollowed] = useState(false)
-    const [followersCount, setFollowersCount] = useState(0)
-    const [followLoading, setFollowLoading] = useState(false)
+    // ── Query: اطلاعات کاربر + پین‌ها ──
+    const {
+        data,
+        isLoading: loading,
+        isError,
+        error,
+    } = useQuery<ProfileResponse>({
+        queryKey: ['user', id],
+        queryFn: async () => {
+            const res = await fetch(`/api/users/${id}`)
+            if (!res.ok) throw new Error('کاربر یافت نشد')
+            return res.json()
+        },
+        enabled: !!id,
+        staleTime: 60 * 1000, // ۱ دقیقه
+    })
 
-    useEffect(() => {
-        const fetchProfile = async () => {
-            setLoading(true)
-            try {
-                const res = await fetch(`/api/users/${id}`)
-                if (!res.ok) throw new Error('کاربر یافت نشد')
-                const data = await res.json()
-                setProfileUser(data.user)
-                setPins(data.pins)
-                setIsFollowed(data.user.isFollowing)
-                setFollowersCount(data.user.followersCount)
-            } catch (err) {
-                setError(err instanceof Error ? err.message : 'خطا')
-            } finally {
-                setLoading(false)
-            }
-        }
-        if (id) fetchProfile()
-    }, [id])
+    const profileUser = data?.user
+    const pins = data?.pins ?? []
 
-    const handleFollow = async () => {
+    // ── Mutation: فالو/آنفالو ──
+    const followMutation = useMutation({
+        mutationFn: async () => {
+            const res = await fetch(`/api/users/${id}/follow`, { method: 'POST' })
+            if (!res.ok) throw new Error('خطا در فالو')
+            return res.json()
+        },
+        onSuccess: (resData: { isFollowing: boolean; followersCount: number }) => {
+            // آپدیت فوری cache به جای fetch مجدد
+            queryClient.setQueryData<ProfileResponse>(['user', id], (old) => {
+                if (!old) return old
+                return {
+                    ...old,
+                    user: {
+                        ...old.user,
+                        isFollowing: resData.isFollowing,
+                        followersCount: resData.followersCount,
+                    },
+                }
+            })
+        },
+    })
+
+    const handleFollow = () => {
         if (!currentUser) {
             router.push('/login')
             return
         }
-        if (followLoading) return
-
-        setFollowLoading(true)
-        try {
-            const res = await fetch(`/api/users/${id}/follow`, {
-                method: 'POST',
-            })
-            if (res.ok) {
-                const data = await res.json()
-                setIsFollowed(data.isFollowing)
-                setFollowersCount(data.followersCount)
-            }
-        } catch (error) {
-            console.error(error)
-        } finally {
-            setFollowLoading(false)
-        }
+        followMutation.mutate()
     }
 
-    // ✅ تابع شروع گفتگو
-    const handleMessage = async () => {
-        if (!currentUser) {
-            router.push('/login')
-            return
-        }
-        try {
+    // ── Mutation: شروع گفتگو ──
+    const messageMutation = useMutation({
+        mutationFn: async () => {
             const res = await fetch('/api/conversations', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: profileUser.id }),
+                body: JSON.stringify({ userId: profileUser!.id }),
             })
             if (!res.ok) throw new Error('خطا در شروع گفتگو')
-            const data = await res.json()
-            if (data.conversation?.id) {
-                router.push(`/messages/${data.conversation.id}`)
+            return res.json()
+        },
+        onSuccess: (resData) => {
+            if (resData.conversation?.id) {
+                router.push(`/messages/${resData.conversation.id}`)
             }
-        } catch (err) {
-            console.error(err)
-            // در صورت نیاز می‌توان خطا را نمایش داد
+        },
+    })
+
+    const handleMessage = () => {
+        if (!currentUser) {
+            router.push('/login')
+            return
         }
+        messageMutation.mutate()
     }
 
     if (loading) {
@@ -105,13 +124,15 @@ export default function UserProfilePage() {
         )
     }
 
-    if (error || !profileUser) {
+    if (isError || !profileUser) {
         return (
             <main dir="rtl" className="min-h-screen flex flex-col items-center justify-center gap-5 px-4 bg-gradient-to-br from-red-50 via-white to-orange-50">
                 <div className="w-20 h-20 rounded-3xl bg-white shadow-lg ring-1 ring-black/5 flex items-center justify-center">
                     <FiAtSign className="w-9 h-9 text-red-300" />
                 </div>
-                <p className="text-gray-800 font-bold text-xl">{error || 'کاربر یافت نشد'}</p>
+                <p className="text-gray-800 font-bold text-xl">
+                    {(error as Error)?.message || 'کاربر یافت نشد'}
+                </p>
                 <Link href="/" className="text-red-600 font-semibold hover:underline">
                     بازگشت به خانه
                 </Link>
@@ -123,16 +144,13 @@ export default function UserProfilePage() {
 
     return (
         <main dir="rtl" className="min-h-screen bg-gradient-to-b from-gray-50 to-white pb-16">
-
             {/* ═══════════ هیروی مینیمال روشن ═══════════ */}
             <div className="relative">
-                {/* نوار کاور خیلی کوتاه و نرم — تنها تزئین صفحه */}
                 <div className="h-28 sm:h-32 bg-gradient-to-l from-red-500/80 via-rose-500/70 to-orange-400/80 relative overflow-hidden">
                     <div className="absolute -top-10 left-1/4 w-48 h-48 bg-white/15 rounded-full blur-2xl" />
                     <div className="absolute -bottom-16 right-1/4 w-56 h-56 bg-white/10 rounded-full blur-3xl" />
                 </div>
 
-                {/* دکمه بازگشت روی کاور */}
                 <button
                     onClick={() => router.back()}
                     className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-white/20 hover:bg-white/35 backdrop-blur-md ring-1 ring-white/30 flex items-center justify-center text-white transition-all cursor-pointer group"
@@ -142,9 +160,7 @@ export default function UserProfilePage() {
                 </button>
 
                 <div className="max-w-2xl mx-auto px-4">
-                    {/* آواتار شناور روی کاور */}
                     <div className="relative -mt-14 sm:-mt-16 w-fit mx-auto group">
-                        {/* حلقه‌ی گرادیانتی دور آواتار */}
                         <div className="p-[3px] rounded-full bg-gradient-to-br from-red-500 via-rose-500 to-orange-400 shadow-xl shadow-red-200/50 transition-transform duration-300 group-hover:scale-[1.03]">
                             <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden bg-white ring-4 ring-white flex items-center justify-center text-3xl sm:text-4xl font-black text-white bg-gradient-to-br from-red-500 to-orange-500">
                                 {profileUser.avatar ? (
@@ -162,7 +178,6 @@ export default function UserProfilePage() {
                         </div>
                     </div>
 
-                    {/* نام و کاربری */}
                     <div className="text-center mt-4">
                         <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
                             {profileUser.name}
@@ -179,9 +194,7 @@ export default function UserProfilePage() {
                         )}
                     </div>
 
-                    {/* آمار: مینیمال، با لهجه‌ی گرادیانت و خط زیرین hover */}
                     <div className="mt-6 flex items-center justify-center gap-5 sm:gap-7">
-                        {/* پین‌ها */}
                         <div className="group/stat flex flex-col items-center gap-1 cursor-default">
                             <div className="flex items-center gap-1.5">
                                 <FiGrid className="w-3.5 h-3.5 text-red-400/50 transition-all duration-300 group-hover/stat:text-red-500 group-hover/stat:scale-110" />
@@ -195,10 +208,9 @@ export default function UserProfilePage() {
 
                         <span className="w-1 h-1 rounded-full bg-gray-200" />
 
-                        {/* دنبال‌کننده */}
                         <div className="group/stat flex flex-col items-center gap-1 cursor-default">
                             <span className="text-lg sm:text-xl font-black tabular-nums leading-none bg-gradient-to-br from-fuchsia-500 to-purple-400 bg-clip-text text-transparent">
-                                {followersCount}
+                                {profileUser.followersCount}
                             </span>
                             <span className="text-[11px] text-gray-400 font-semibold">دنبال‌کننده</span>
                             <span className="h-0.5 w-0 rounded-full bg-gradient-to-l from-fuchsia-500 to-purple-400 opacity-0 group-hover/stat:opacity-100 group-hover/stat:w-full transition-all duration-300" />
@@ -206,7 +218,6 @@ export default function UserProfilePage() {
 
                         <span className="w-1 h-1 rounded-full bg-gray-200" />
 
-                        {/* دنبال‌شونده */}
                         <div className="group/stat flex flex-col items-center gap-1 cursor-default">
                             <span className="text-lg sm:text-xl font-black tabular-nums leading-none bg-gradient-to-br from-blue-500 to-cyan-400 bg-clip-text text-transparent">
                                 {profileUser.followingCount}
@@ -230,28 +241,32 @@ export default function UserProfilePage() {
                             <div className="flex items-center gap-2">
                                 <button
                                     onClick={handleFollow}
-                                    disabled={followLoading}
-                                    className={`inline-flex items-center gap-2 text-sm font-bold px-7 py-2.5 rounded-full transition-all cursor-pointer active:scale-95 ${
-                                        isFollowed
+                                    disabled={followMutation.isPending}
+                                    className={`inline-flex items-center gap-2 text-sm font-bold px-7 py-2.5 rounded-full transition-all cursor-pointer active:scale-95 ${profileUser.isFollowing
                                             ? 'text-gray-700 bg-white ring-1 ring-gray-300 hover:ring-gray-400 shadow-sm'
                                             : 'text-white bg-gray-900 hover:bg-black shadow-lg shadow-gray-300/60 hover:-translate-y-0.5'
-                                    } ${followLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                        } ${followMutation.isPending ? 'opacity-60 cursor-not-allowed' : ''}`}
                                 >
-                                    {followLoading ? (
+                                    {followMutation.isPending ? (
                                         <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin opacity-70" />
-                                    ) : isFollowed ? (
+                                    ) : profileUser.isFollowing ? (
                                         <FiCheck className="w-4 h-4" />
                                     ) : (
                                         <FiUserPlus className="w-4 h-4" />
                                     )}
-                                    {isFollowed ? 'دنبال می‌کنید' : 'دنبال کردن'}
+                                    {profileUser.isFollowing ? 'دنبال می‌کنید' : 'دنبال کردن'}
                                 </button>
 
                                 <button
                                     onClick={handleMessage}
-                                    className="inline-flex items-center gap-2 text-sm font-bold px-6 py-2.5 rounded-full text-gray-700 bg-white ring-1 ring-gray-300 hover:ring-gray-400 hover:bg-gray-50 transition-all cursor-pointer active:scale-95 shadow-sm"
+                                    disabled={messageMutation.isPending}
+                                    className="inline-flex items-center gap-2 text-sm font-bold px-6 py-2.5 rounded-full text-gray-700 bg-white ring-1 ring-gray-300 hover:ring-gray-400 hover:bg-gray-50 transition-all cursor-pointer active:scale-95 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
                                 >
-                                    <FiMessageCircle className="w-4 h-4 text-gray-400" />
+                                    {messageMutation.isPending ? (
+                                        <span className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
+                                    ) : (
+                                        <FiMessageCircle className="w-4 h-4 text-gray-400" />
+                                    )}
                                     پیام
                                 </button>
                             </div>
@@ -260,7 +275,7 @@ export default function UserProfilePage() {
                 </div>
             </div>
 
-            {/* ═══════════ پین‌های کاربر — بدون کارت سنگین ═══════════ */}
+            {/* ═══════════ پین‌های کاربر ═══════════ */}
             <div className="max-w-[1400px] mx-auto px-4 sm:px-8 mt-12">
                 <div className="flex items-center gap-3 mb-6">
                     <h2 className="flex items-center gap-2 font-bold text-gray-900 text-sm shrink-0">
@@ -282,11 +297,8 @@ export default function UserProfilePage() {
                     </div>
                 ) : (
                     <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4 space-y-4">
-                        {pins.map(pin => (
-                            <PinCard
-                                key={pin.id}
-                                pin={pin}
-                            />
+                        {pins.map((pin: any) => (
+                            <PinCard key={pin.id} pin={pin} />
                         ))}
                     </div>
                 )}
