@@ -135,7 +135,7 @@ export default function SearchPage() {
     return (
         <main
             dir="rtl"
-            className="relative min-h-screen overflow-hidden bg-gradient-to-br from-gray-50 via-white to-red-50/40 py-8 px-4"
+            className="relative min-h-screen mb-12 overflow-hidden bg-gradient-to-br from-gray-50 via-white to-red-50/40 py-8 px-4"
         >
             {/* تزئینی پس‌زمینه */}
             <div className="absolute -top-24 -left-24 w-96 h-96 bg-red-100/50 rounded-full blur-3xl pointer-events-none" />
@@ -279,14 +279,6 @@ setActiveTab('users')
                             <br />
                             املای عبارت را بررسی کنید یا عبارت دیگری را امتحان کنید.
                         </p>
-
-                        <Link
-                            href="/"
-                            className="mt-8 inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold text-sm px-6 py-3 rounded-full shadow-lg shadow-red-200/70 hover:shadow-xl hover:-translate-y-0.5 transition-all no-underline"
-                        >
-                            <FiHome className="w-4 h-4" />
-                            کشف پین‌های جدید
-                        </Link>
                     </div>
                 ) : activeTab === 'pins' ? (
                     <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4 space-y-4">

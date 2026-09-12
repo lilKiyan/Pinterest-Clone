@@ -155,7 +155,7 @@ export default function MyBoardsPage() {
     }
 
     return (
-        <main className="min-h-screen bg-gradient-to-b from-gray-50 to-white px-7 py-8 md:py-10">
+        <main className="min-h-screen bg-gradient-to-b mb-12 from-gray-50 to-white px-7 py-8 md:py-10">
             <div className="mx-auto">
                 <h1 key={activeTab}
                     className="text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight mb-8 animate-[fadeIn_0.3s_ease-out]">

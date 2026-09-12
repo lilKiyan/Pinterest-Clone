@@ -361,7 +361,7 @@ export default function PinDetailPage() {
     }
 
     return (
-        <main dir="rtl" className="relative min-h-screen overflow-hidden bg-gradient-to-br from-red-50/60 via-white to-orange-50/50 py-6 md:py-10 px-2">
+        <main dir="rtl" className="relative mb-15 min-h-screen overflow-hidden bg-gradient-to-br from-red-50/60 via-white to-orange-50/50 py-6 md:py-10 px-2">
             <div className="absolute -top-32 -left-32 w-96 h-96 bg-red-100/50 rounded-full blur-3xl pointer-events-none" />
             <div className="absolute -bottom-32 -right-32 w-[28rem] h-[28rem] bg-orange-100/40 rounded-full blur-3xl pointer-events-none" />
 

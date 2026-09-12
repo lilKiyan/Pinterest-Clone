@@ -39,6 +39,7 @@ export default function UserProfilePage() {
     const { user: currentUser } = useAuthStore()
     const queryClient = useQueryClient()
 
+
     // ── Query: اطلاعات کاربر + پین‌ها ──
     const {
         data,
@@ -90,30 +91,13 @@ export default function UserProfilePage() {
         followMutation.mutate()
     }
 
-    // ── Mutation: شروع گفتگو ──
-    const messageMutation = useMutation({
-        mutationFn: async () => {
-            const res = await fetch('/api/conversations', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: profileUser!.id }),
-            })
-            if (!res.ok) throw new Error('خطا در شروع گفتگو')
-            return res.json()
-        },
-        onSuccess: (resData) => {
-            if (resData.conversation?.id) {
-                router.push(`/messages/${resData.conversation.id}`)
-            }
-        },
-    })
-
     const handleMessage = () => {
         if (!currentUser) {
             router.push('/login')
             return
         }
-        messageMutation.mutate()
+        if (!profileUser) return
+        router.push(`/messages/new?userId=${profileUser.id}`)
     }
 
     if (loading) {
@@ -243,8 +227,8 @@ export default function UserProfilePage() {
                                     onClick={handleFollow}
                                     disabled={followMutation.isPending}
                                     className={`inline-flex items-center gap-2 text-sm font-bold px-7 py-2.5 rounded-full transition-all cursor-pointer active:scale-95 ${profileUser.isFollowing
-                                            ? 'text-gray-700 bg-white ring-1 ring-gray-300 hover:ring-gray-400 shadow-sm'
-                                            : 'text-white bg-gray-900 hover:bg-black shadow-lg shadow-gray-300/60 hover:-translate-y-0.5'
+                                        ? 'text-gray-700 bg-white ring-1 ring-gray-300 hover:ring-gray-400 shadow-sm'
+                                        : 'text-white bg-gray-900 hover:bg-black shadow-lg shadow-gray-300/60 hover:-translate-y-0.5'
                                         } ${followMutation.isPending ? 'opacity-60 cursor-not-allowed' : ''}`}
                                 >
                                     {followMutation.isPending ? (
@@ -259,14 +243,9 @@ export default function UserProfilePage() {
 
                                 <button
                                     onClick={handleMessage}
-                                    disabled={messageMutation.isPending}
-                                    className="inline-flex items-center gap-2 text-sm font-bold px-6 py-2.5 rounded-full text-gray-700 bg-white ring-1 ring-gray-300 hover:ring-gray-400 hover:bg-gray-50 transition-all cursor-pointer active:scale-95 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                                    className="inline-flex items-center gap-2 text-sm font-bold px-6 py-2.5 rounded-full text-gray-700 bg-white ring-1 ring-gray-300 hover:ring-gray-400 hover:bg-gray-50 transition-all cursor-pointer active:scale-95 shadow-sm"
                                 >
-                                    {messageMutation.isPending ? (
-                                        <span className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
-                                    ) : (
-                                        <FiMessageCircle className="w-4 h-4 text-gray-400" />
-                                    )}
+                                    <FiMessageCircle className="w-4 h-4 text-gray-400" />
                                     پیام
                                 </button>
                             </div>

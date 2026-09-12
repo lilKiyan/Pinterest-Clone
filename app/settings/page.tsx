@@ -151,7 +151,7 @@ export default function SettingsPage() {
         'w-full border-2 text-sm md:text-lg border-gray-200 rounded-xl pr-10 pl-4 py-3 text-gray-900 placeholder-gray-400 bg-white/80 focus:outline-none focus:border-red-400 focus:ring-4 focus:ring-red-100/50 transition-all duration-200'
 
     return (
-        <main dir="rtl" className="relative min-h-screen overflow-hidden bg-gradient-to-br from-gray-50 via-white to-red-50/40 px-4 py-8 md:py-12">
+        <main dir="rtl" className="relative min-h-screen mb-10 md:mb-2 overflow-hidden bg-gradient-to-br from-gray-50 via-white to-red-50/40 px-4 py-8 md:py-12">
             {/* عناصر تزئینی پس‌زمینه */}
             <div className="absolute -top-24 -left-24 w-96 h-96 bg-red-100/50 rounded-full blur-3xl pointer-events-none" />
             <div className="absolute -bottom-32 -right-32 w-[28rem] h-[28rem] bg-orange-100/40 rounded-full blur-3xl pointer-events-none" />
@@ -186,9 +186,9 @@ export default function SettingsPage() {
                 {success && (
                     <div className="mb-6 flex items-center gap-3 bg-white/90 backdrop-blur-md border border-green-200/80 text-green-700 px-5 py-4 rounded-2xl shadow-lg shadow-green-100/50 animate-[fadeInUp_0.3s_ease-out]">
                         <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center shrink-0">
-                            <FiCheckCircle className="w-4.5 h-4.5 w-5 h-5" />
+                            <FiCheckCircle className="w-4 h-4 md:w-5 md:h-5" />
                         </div>
-                        <span className="font-semibold">{success}</span>
+                        <span className="font-semibold text-xs md:text-md">{success}</span>
                     </div>
                 )}
                 {error && (

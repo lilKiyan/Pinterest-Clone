@@ -48,7 +48,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
                 createdAt: p.createdAt,
                 updatedAt: p.updatedAt,
                 userId: p.userId,
-                isOwner: user ? p.userId === user.id : false,
+                isOwner:false,
                 isSavedByMe: userSaves.length > 0,
                 savedBoards: userSaves.map((s) => ({
                     boardId: s.boardId,

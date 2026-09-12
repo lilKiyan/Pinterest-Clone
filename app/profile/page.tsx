@@ -88,7 +88,7 @@ export default function ProfilePage() {
     }
 
     return (
-        <main className="pb-8">
+        <main className="mb-12">
             {/* هیرو */}
             <div className="relative overflow-hidden bg-[#150a08] px-4 sm:px-8 pt-14 pb-20 sm:pb-24">
                 <div className="absolute -top-24 -right-16 w-72 h-72 bg-red-600/40 rounded-full blur-[100px] animate-pulse" />

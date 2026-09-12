@@ -3,7 +3,16 @@ import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { cookies } from 'next/headers'
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production'
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET
+  if (!secret) {
+    throw new Error('JWT_SECRET is not defined in environment variables')
+  }
+  return secret
+}
+
+const JWT_SECRET: string = getJwtSecret()
+
 const COOKIE_NAME = 'auth_token'
 
 export async function hashPassword(password: string): Promise<string> {
@@ -49,4 +58,5 @@ export async function getCurrentUser() {
 
     return user
 }
+
 export { COOKIE_NAME }
