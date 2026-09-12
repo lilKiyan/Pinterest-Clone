@@ -1,13 +1,13 @@
 "use client"
 
-import { useState,useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import PinCard from '../components/PinCard'
 import UserCard, { type SearchUser } from '../components/UserCard'
 import { useAuthStore } from '@/lib/authStore'
-import { FiSearch, FiX, FiHome, FiUsers, FiGrid } from 'react-icons/fi'
+import { FiSearch, FiX, FiUsers, FiGrid } from 'react-icons/fi'
 
 type Tab = 'pins' | 'users'
 
@@ -32,7 +32,8 @@ const SkeletonUserCard = () => (
     </div>
 )
 
-export default function SearchPage() {
+// ✅ تغییر ۱: این دیگه export default نیست
+function SearchContent() {
     const searchParams = useSearchParams()
     const q = searchParams.get('q') || ''
     const { user } = useAuthStore()
@@ -55,7 +56,7 @@ export default function SearchPage() {
             const data = await res.json()
             return data.pins || []
         },
-        enabled: hasQuery, 
+        enabled: hasQuery,
         staleTime: 2 * 60 * 1000,
     })
 
@@ -72,7 +73,7 @@ export default function SearchPage() {
             const data = await res.json()
             return data.users || []
         },
-        enabled: hasQuery, 
+        enabled: hasQuery,
         staleTime: 2 * 60 * 1000,
     })
 
@@ -176,9 +177,9 @@ export default function SearchPage() {
                 {hasQuery && (
                     <div className="inline-flex items-center gap-2 bg-gray-100 rounded-full p-1 mb-8">
                         <button
-                            onClick={() =>{
+                            onClick={() => {
                                 setActiveTab('pins')
-                            } }
+                            }}
                             className={`flex items-center gap-2 px-4 sm:px-5 py-2 font-semibold text-sm rounded-full transition-all cursor-pointer ${activeTab === 'pins'
                                 ? 'bg-white text-gray-900 shadow-sm'
                                 : 'text-gray-500 hover:text-gray-800'
@@ -193,10 +194,10 @@ export default function SearchPage() {
                             )}
                         </button>
                         <button
-                            onClick={() =>{
+                            onClick={() => {
                                 console.log('👆 CLICKED: users')
-setActiveTab('users')
-                            } }
+                                setActiveTab('users')
+                            }}
                             className={`flex items-center gap-2 px-4 sm:px-5 py-2 font-semibold text-sm rounded-full transition-all cursor-pointer ${activeTab === 'users'
                                 ? 'bg-white text-gray-900 shadow-sm'
                                 : 'text-gray-500 hover:text-gray-800'
@@ -308,5 +309,22 @@ setActiveTab('users')
         }
       `}</style>
         </main>
+    )
+}
+
+export default function SearchPage() {
+    return (
+        <Suspense
+            fallback={
+                <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 via-white to-red-50/40">
+                    <div className="flex flex-col items-center gap-3">
+                        <div className="w-10 h-10 border-4 border-gray-200 border-t-red-500 rounded-full animate-spin" />
+                        <p className="text-sm text-gray-400 font-medium">در حال بارگذاری...</p>
+                    </div>
+                </main>
+            }
+        >
+            <SearchContent />
+        </Suspense>
     )
 }
