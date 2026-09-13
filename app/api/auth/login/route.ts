@@ -2,68 +2,48 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { comparePassword, signToken, COOKIE_NAME } from '@/lib/auth'
 import { cookies } from 'next/headers'
+import { normalizeEmail } from '@/lib/validations'
 
 export async function POST(request: Request) {
     try {
-        // ۱. دریافت اطلاعات ورود از فرم
         const body = await request.json()
         const { email, password } = body
 
         if (!email || !password) {
-            return NextResponse.json(
-                { error: 'ایمیل و رمز عبور الزامی است' },
-                { status: 400 }
-            )
+            return NextResponse.json({ error: 'ایمیل و رمز عبور الزامی است' }, { status: 400 })
         }
 
-        // ۳. پیدا کردن کاربر با ایمیل
+        const normalizedEmail = normalizeEmail(email)
+
         const user = await prisma.user.findFirst({
-            where: { email },
+            where: { email: { equals: normalizedEmail, mode: 'insensitive' } },
         })
 
         if (!user) {
-            return NextResponse.json(
-                { error: 'ایمیل یا رمز عبور اشتباه است' },
-                { status: 401 }
-            )
+            return NextResponse.json({ error: 'ایمیل یا رمز عبور اشتباه است' }, { status: 401 })
         }
 
-        // ۵. مقایسه رمز واردشده با هش ذخیره‌شده
         const isPasswordValid = await comparePassword(password, user.password)
         if (!isPasswordValid) {
-            return NextResponse.json(
-                { error: 'ایمیل یا رمز عبور اشتباه است' },
-                { status: 401 }
-            )
+            return NextResponse.json({ error: 'ایمیل یا رمز عبور اشتباه است' }, { status: 401 })
         }
 
-        // ۶. ساخت توکن JWT
-        const token = await  signToken(user.id)
+        const token = await signToken(user.id)
 
-        // ۷. ذخیره توکن در کوکی
         const cookieStore = await cookies()
         cookieStore.set(COOKIE_NAME, token, {
             httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
             path: '/',
-            maxAge: 60 * 60 * 24 * 7, // 7 روز
+            maxAge: 60 * 60 * 24 * 7,
             sameSite: 'lax',
         })
 
-        // ۸. برگرداندن اطلاعات کاربر
         return NextResponse.json({
-            user: {
-                id: user.id,
-                email: user.email,
-                username: user.username,
-                name: user.name,
-            },
+            user: { id: user.id, email: user.email, username: user.username, name: user.name },
         })
-
     } catch (error) {
         console.error('POST /api/auth/login error:', error)
-        return NextResponse.json(
-            { error: 'خطا در ورود' },
-            { status: 500 }
-        )
+        return NextResponse.json({ error: 'خطا در ورود' }, { status: 500 })
     }
 }

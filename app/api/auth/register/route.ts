@@ -2,55 +2,84 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { hashPassword, signToken, COOKIE_NAME } from '@/lib/auth'
 import { cookies } from 'next/headers'
+import {
+    validateEmail,
+    validateUsername,
+    validateName,
+    validatePassword,
+    normalizeUsername,
+    normalizeEmail,
+} from '@/lib/validations'
 
 export async function POST(request: Request) {
     try {
-        // ۱. گرفتن داده‌های ارسال‌شده از فرم
         const body = await request.json()
         const { email, username, name, password } = body
 
-        // ۲. اعتبارسنجی ساده
-        if (!email || !username || !name || !password) {
-            return NextResponse.json(
-                { error: 'همه فیلد ها الزامی است' },
-                { status: 400 }
-            )
-        }
-        // ۳. بررسی اینکه کاربر با این ایمیل یا نام کاربری وجود نداشته باشه
+        // ─── اعتبارسنجی ───
+        const emailError = validateEmail(email)
+        if (emailError) return NextResponse.json({ error: emailError, field: 'email' }, { status: 400 })
+
+        const usernameError = validateUsername(username)
+        if (usernameError) return NextResponse.json({ error: usernameError, field: 'username' }, { status: 400 })
+
+        const nameError = validateName(name)
+        if (nameError) return NextResponse.json({ error: nameError, field: 'name' }, { status: 400 })
+
+        const passwordError = validatePassword(password)
+        if (passwordError) return NextResponse.json({ error: passwordError, field: 'password' }, { status: 400 })
+
+        // ─── نرمال‌سازی ───
+        const normalizedEmail = normalizeEmail(email)
+        const normalizedUsername = normalizeUsername(username)
+
+        // ─── چک تکراری بودن (case-insensitive با PostgreSQL) ───
         const existingUser = await prisma.user.findFirst({
-            where: { OR: [{ email }, { username }] }
+            where: {
+                OR: [
+                    { email: { equals: normalizedEmail, mode: 'insensitive' } },
+                    { username: { equals: normalizedUsername, mode: 'insensitive' } },
+                ],
+            },
+            select: { email: true, username: true },
         })
 
         if (existingUser) {
+            const isEmailTaken = existingUser.email.toLowerCase() === normalizedEmail
             return NextResponse.json(
-                { error: 'کاربری با این ایمیل یا نام کاربری وجود دارد' },
+                {
+                    error: isEmailTaken
+                        ? 'این ایمیل قبلاً ثبت شده است'
+                        : 'این نام کاربری قبلاً استفاده شده است',
+                    field: isEmailTaken ? 'email' : 'username',
+                },
                 { status: 409 }
             )
         }
-        // ۴. هش کردن رمز عبور
+
+        // ─── هش و ساخت کاربر ───
         const hashedPassword = await hashPassword(password)
-        // ۵. ساخت کاربر جدید در دیتابیس
+
         const newUser = await prisma.user.create({
             data: {
-                email,
-                username,
-                name,
+                email: normalizedEmail,
+                username: normalizedUsername,
+                name: name.trim(),
                 password: hashedPassword,
-            }
+            },
         })
 
-        // ۶. ساخت توکن JWT
+        // ─── ساخت توکن و ست کوکی ───
         const token = await signToken(newUser.id)
-        // ۷. ذخیره توکن در کوکی httpOnly
         const cookieStore = await cookies()
         cookieStore.set(COOKIE_NAME, token, {
             httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
             path: '/',
-            maxAge: 60 * 60 * 24 * 7, // یک هفته
+            maxAge: 60 * 60 * 24 * 7,
             sameSite: 'lax',
         })
 
-        // ۸. برگرداندن اطلاعات کاربر (بدون رمز)
         return NextResponse.json(
             {
                 user: {
@@ -64,9 +93,6 @@ export async function POST(request: Request) {
         )
     } catch (error) {
         console.error('POST /api/auth/register error:', error)
-        return NextResponse.json(
-            { error: 'خطا در ثبت‌نام' },
-            { status: 500 }
-        )
+        return NextResponse.json({ error: 'خطا در ثبت‌نام' }, { status: 500 })
     }
 }
