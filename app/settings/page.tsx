@@ -201,7 +201,7 @@ export default function SettingsPage() {
                                 user.username?.charAt(0).toUpperCase()
                             )}
                         </div>
-                        <div className="absolute bottom-0.5 md:-bottom-1 -left-1 md:-left-1 w-3 h-3 bg-green-500 rounded-full border-[3px] border-white" />
+                        
                     </div>
                     <div className="min-w-0">
                         <h1 className="text-lg md:text-3xl font-extrabold bg-gradient-to-l from-red-600 to-rose-600 bg-clip-text text-transparent">
@@ -215,7 +215,6 @@ export default function SettingsPage() {
                     </div>
                 </div>
 
-                {/* ── اعلان‌ها ── */}
                 {success && (
                     <div className="mb-6 flex items-center gap-3 bg-white/90 backdrop-blur-md border border-green-200/80 text-green-700 px-5 py-4 rounded-2xl shadow-lg shadow-green-100/50 animate-[fadeInUp_0.3s_ease-out]">
                         <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center shrink-0">
@@ -483,130 +482,130 @@ export default function SettingsPage() {
                 }
             `}</style>
             <div className="mt-8 relative bg-white/90 backdrop-blur-md rounded-3xl shadow-xl shadow-red-100/30 ring-1 ring-red-200/50 overflow-hidden">
-                {/* نوار قرمز بالای کارت */}
-                <div className="h-1.5 bg-gradient-to-r from-red-600 via-rose-500 to-red-600" />
+    {/* نوار قرمز بالای کارت */}
+    <div className="h-1.5 bg-gradient-to-r from-red-600 via-rose-500 to-red-600" />
 
-                <div className="p-6 md:p-8">
-                    <div className="flex items-center gap-3 mb-4">
-                        <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center">
-                            <FiAlertTriangle className="w-5 h-5 text-red-600" />
-                        </div>
-                        <div>
-                            <h2 className="text-lg font-bold text-red-600">منطقه‌ی خطر</h2>
-                            <p className="text-xs text-gray-400 mt-0.5">عملیات غیرقابل بازگشت</p>
-                        </div>
+    <div className="p-6 md:p-8">
+        <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center">
+                <FiAlertTriangle className="w-5 h-5 text-red-600" />
+            </div>
+            <div>
+                <h2 className="text-lg font-bold text-red-600">منطقه‌ی خطر</h2>
+                <p className="text-xs text-gray-400 mt-0.5">عملیات غیرقابل بازگشت</p>
+            </div>
+        </div>
+
+        <div className="bg-red-50/60 border border-red-100 rounded-2xl p-4 mb-5">
+            <p className="text-sm text-red-700 font-semibold mb-1">حذف حساب کاربری</p>
+            <p className="text-xs text-red-600/80 leading-relaxed">
+                با حذف حساب، تمام اطلاعات شما شامل پین‌ها، بردها، کامنت‌ها، لایک‌ها و گفتگوها
+                به صورت دائمی پاک می‌شوند. این عمل قابل بازگشت نیست.
+            </p>
+        </div>
+
+        <button
+            onClick={() => setShowDeleteModal(true)}
+            className="w-full bg-white border-2 border-red-300 hover:border-red-500 hover:bg-red-50 text-red-600 font-bold py-3.5 rounded-2xl transition-all duration-200 cursor-pointer flex items-center justify-center gap-2"
+        >
+            <FiTrash2 className="w-4 h-4" />
+            حذف دائمی حساب کاربری
+        </button>
+    </div>
+</div>
+
+{/* ═══════════════ 🗑️ مودال تأیید حذف حساب ═══════════════ */}
+{showDeleteModal && (
+    <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
+        <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden animate-[fadeInUp_0.3s_ease-out]">
+            {/* نوار قرمز بالا */}
+            <div className="h-1.5 bg-gradient-to-r from-red-600 via-rose-500 to-red-600" />
+
+            {/* دکمه بستن */}
+            <button
+                onClick={() => {
+                    setShowDeleteModal(false)
+                    setDeleteConfirmText('')
+                    setDeleteError('')
+                }}
+                className="absolute top-5 right-4 w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors cursor-pointer"
+                aria-label="بستن"
+            >
+                <FiX className="w-4 h-4" />
+            </button>
+
+            <div className="p-6">
+                {/* آیکون خطر */}
+                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-red-50 flex items-center justify-center rotate-3">
+                    <FiAlertTriangle className="w-8 h-8 text-red-600" />
+                </div>
+
+                <h3 className="text-lg font-extrabold text-gray-900 text-center mb-2">
+                    حذف حساب کاربری؟
+                </h3>
+                <p className="text-sm text-gray-500 text-center leading-relaxed mb-5">
+                    این عمل <span className="font-bold text-red-600">غیرقابل بازگشت</span> است. تمام داده‌های شما پاک می‌شوند.
+                </p>
+
+                {/* راهنمای تایپ یوزرنیم */}
+                <div className="bg-gray-50 rounded-2xl p-4 mb-4">
+                    <p className="text-xs text-gray-600 mb-2 text-center">
+                        برای تأیید، نام کاربری خود را تایپ کنید:
+                    </p>
+                    <p className="text-center font-mono text-sm font-bold text-gray-900 mb-3 bg-white px-3 py-1.5 rounded-lg ring-1 ring-gray-200 select-all" dir="ltr">
+                        {user?.username}
+                    </p>
+                    <input
+                        type="text"
+                        value={deleteConfirmText}
+                        onChange={(e) => {
+                            setDeleteConfirmText(e.target.value)
+                            setDeleteError('')
+                        }}
+                        placeholder="نام کاربری را تایپ کنید..."
+                        className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-center text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-red-400 focus:ring-4 focus:ring-red-100/50 transition-all"
+                        dir="ltr"
+                    />
+                </div>
+
+                {deleteError && (
+                    <div className="mb-4 flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 px-4 py-2.5 rounded-xl text-xs">
+                        <FiAlertTriangle className="w-4 h-4 shrink-0" />
+                        {deleteError}
                     </div>
+                )}
 
-                    <div className="bg-red-50/60 border border-red-100 rounded-2xl p-4 mb-5">
-                        <p className="text-sm text-red-700 font-semibold mb-1">حذف حساب کاربری</p>
-                        <p className="text-xs text-red-600/80 leading-relaxed">
-                            با حذف حساب، تمام اطلاعات شما شامل پین‌ها، بردها، کامنت‌ها، لایک‌ها و گفتگوها
-                            به صورت دائمی پاک می‌شوند. این عمل قابل بازگشت نیست.
-                        </p>
-                    </div>
-
+                <div className="flex gap-3">
                     <button
-                        onClick={() => setShowDeleteModal(true)}
-                        className="w-full bg-white border-2 border-red-300 hover:border-red-500 hover:bg-red-50 text-red-600 font-bold py-3.5 rounded-2xl transition-all duration-200 cursor-pointer flex items-center justify-center gap-2"
+                        onClick={() => {
+                            setShowDeleteModal(false)
+                            setDeleteConfirmText('')
+                            setDeleteError('')
+                        }}
+                        disabled={isDeleting}
+                        className="flex-1 py-3 rounded-xl font-bold text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors cursor-pointer disabled:opacity-50"
                     >
-                        <FiTrash2 className="w-4 h-4" />
-                        حذف دائمی حساب کاربری
+                        انصراف
+                    </button>
+                    <button
+                        onClick={handleDeleteAccount}
+                        disabled={deleteConfirmText !== user?.username || isDeleting}
+                        className="flex-1 py-3 rounded-xl font-bold text-sm bg-red-600 text-white shadow-lg shadow-red-200 hover:bg-red-700 hover:shadow-xl transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                        {isDeleting ? (
+                            <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                        ) : (
+                            <>
+                                <FiTrash2 className="w-4 h-4" />
+                                حذف نهایی
+                            </>
+                        )}
                     </button>
                 </div>
             </div>
-
-            {/* ═══════════════ 🗑️ مودال تأیید حذف حساب ═══════════════ */}
-            {showDeleteModal && (
-                <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
-                    <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden animate-[fadeInUp_0.3s_ease-out]">
-                        {/* نوار قرمز بالا */}
-                        <div className="h-1.5 bg-gradient-to-r from-red-600 via-rose-500 to-red-600" />
-
-                        {/* دکمه بستن */}
-                        <button
-                            onClick={() => {
-                                setShowDeleteModal(false)
-                                setDeleteConfirmText('')
-                                setDeleteError('')
-                            }}
-                            className="absolute top-5 right-4 w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors cursor-pointer"
-                            aria-label="بستن"
-                        >
-                            <FiX className="w-4 h-4" />
-                        </button>
-
-                        <div className="p-6">
-                            {/* آیکون خطر */}
-                            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-red-50 flex items-center justify-center rotate-3">
-                                <FiAlertTriangle className="w-8 h-8 text-red-600" />
-                            </div>
-
-                            <h3 className="text-lg font-extrabold text-gray-900 text-center mb-2">
-                                حذف حساب کاربری؟
-                            </h3>
-                            <p className="text-sm text-gray-500 text-center leading-relaxed mb-5">
-                                این عمل <span className="font-bold text-red-600">غیرقابل بازگشت</span> است. تمام داده‌های شما پاک می‌شوند.
-                            </p>
-
-                            {/* راهنمای تایپ یوزرنیم */}
-                            <div className="bg-gray-50 rounded-2xl p-4 mb-4">
-                                <p className="text-xs text-gray-600 mb-2 text-center">
-                                    برای تأیید، نام کاربری خود را تایپ کنید:
-                                </p>
-                                <p className="text-center font-mono text-sm font-bold text-gray-900 mb-3 bg-white px-3 py-1.5 rounded-lg ring-1 ring-gray-200 select-all" dir="ltr">
-                                    {user?.username}
-                                </p>
-                                <input
-                                    type="text"
-                                    value={deleteConfirmText}
-                                    onChange={(e) => {
-                                        setDeleteConfirmText(e.target.value)
-                                        setDeleteError('')
-                                    }}
-                                    placeholder="نام کاربری را تایپ کنید..."
-                                    className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-center text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-red-400 focus:ring-4 focus:ring-red-100/50 transition-all"
-                                    dir="ltr"
-                                />
-                            </div>
-
-                            {deleteError && (
-                                <div className="mb-4 flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 px-4 py-2.5 rounded-xl text-xs">
-                                    <FiAlertTriangle className="w-4 h-4 shrink-0" />
-                                    {deleteError}
-                                </div>
-                            )}
-
-                            <div className="flex gap-3">
-                                <button
-                                    onClick={() => {
-                                        setShowDeleteModal(false)
-                                        setDeleteConfirmText('')
-                                        setDeleteError('')
-                                    }}
-                                    disabled={isDeleting}
-                                    className="flex-1 py-3 rounded-xl font-bold text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors cursor-pointer disabled:opacity-50"
-                                >
-                                    انصراف
-                                </button>
-                                <button
-                                    onClick={handleDeleteAccount}
-                                    disabled={deleteConfirmText !== user?.username || isDeleting}
-                                    className="flex-1 py-3 rounded-xl font-bold text-sm bg-red-600 text-white shadow-lg shadow-red-200 hover:bg-red-700 hover:shadow-xl transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                                >
-                                    {isDeleting ? (
-                                        <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                                    ) : (
-                                        <>
-                                            <FiTrash2 className="w-4 h-4" />
-                                            حذف نهایی
-                                        </>
-                                    )}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
+        </div>
+    </div>
+)}
         </main>
     )
 }
