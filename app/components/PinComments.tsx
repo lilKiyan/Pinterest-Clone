@@ -3,22 +3,19 @@
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { useAuthStore } from '@/lib/authStore'
-import Link from 'next/link'
 import {
     FiMessageCircle,
     FiTrash2,
     FiSend,
-    FiLogIn,
-    FiX
 } from 'react-icons/fi'
 
 type PinCommentsProps = {
     pinId: string
+    onRequireLogin?: () => void
 }
 
-export default function PinComments({ pinId }: PinCommentsProps) {
+export default function PinComments({ pinId, onRequireLogin }: PinCommentsProps) {
     const { user } = useAuthStore()
-    const [showLoginModal, setShowLoginModal] = useState(false)
     const [comments, setComments] = useState<any[]>([])
     const [newComment, setNewComment] = useState('')
     const [loadingComments, setLoadingComments] = useState(true)
@@ -50,8 +47,8 @@ export default function PinComments({ pinId }: PinCommentsProps) {
         e.preventDefault()
 
         if (!user) {
-            setShowLoginModal(true) // مودال رو باز کن
-            return // و نذار ادامه بده
+            onRequireLogin?.()  
+            return
         }
 
         if (!newComment.trim()) return
@@ -119,6 +116,7 @@ export default function PinComments({ pinId }: PinCommentsProps) {
     }
 
     return (
+
         <div className="px-6 py-4 flex flex-col gap-4">
             {/* هدر */}
             <div className="flex items-center gap-2.5">
@@ -306,51 +304,6 @@ export default function PinComments({ pinId }: PinCommentsProps) {
                             >
                                 حذف
                             </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* ✅ مودال هشدار برای کاربران مهمان */}
-            {showLoginModal && (
-                <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
-                    <div className="relative w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden p-6 text-center animate-[fadeInUp_0.3s_ease-out]">
-
-                        {/* دکمه بستن */}
-                        <button
-                            onClick={() => setShowLoginModal(false)}
-                            className="absolute top-3 right-3 w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors cursor-pointer"
-                        >
-                            <FiX className="w-4 h-4" />
-                        </button>
-
-                        {/* آیکون */}
-                        <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-red-50 flex items-center justify-center rotate-3">
-                            <FiMessageCircle className="w-8 h-8 text-red-500" />
-                        </div>
-
-                        {/* متن */}
-                        <h3 className="text-lg font-extrabold text-gray-900 mb-2">
-                            برای ثبت نظر وارد شوید
-                        </h3>
-                        <p className="text-sm text-gray-500 leading-relaxed mb-6">
-                            برای ارسال دیدگاه و تعامل با دیگران، ابتدا باید وارد حساب کاربری خود شوید.
-                        </p>
-
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => setShowLoginModal(false)}
-                                className="flex-1 py-3 rounded-xl font-bold text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors cursor-pointer"
-                            >
-                                انصراف
-                            </button>
-                            <Link
-                                href="/login"
-                                className="flex-1 py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-lg shadow-red-200 hover:shadow-xl hover:-translate-y-0.5 transition-all no-underline flex items-center justify-center gap-2"
-                            >
-                                <FiLogIn className="w-4 h-4" />
-                                ورود / ثبت‌نام
-                            </Link>
                         </div>
                     </div>
                 </div>
