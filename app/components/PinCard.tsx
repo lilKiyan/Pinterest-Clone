@@ -46,7 +46,10 @@ type PinCardProps = {
     onRemoveFromBoard?: (pinId: string) => void
     optionsRotationDefault?: number
     menuExcluded?: string[]
+    priority?: boolean
 }
+
+
 
 type SaveMutationVariables = {
     pinId: string
@@ -55,7 +58,7 @@ type SaveMutationVariables = {
     boardName?: string   // ✅ اضافه شد
 }
 
-const PinCard = ({ pin, onDeletePin, onRemoveFromBoard, optionsRotationDefault = -90, menuExcluded }: PinCardProps) => {
+const PinCard = ({ pin, onDeletePin, onRemoveFromBoard, optionsRotationDefault = -90, menuExcluded, priority = false }: PinCardProps) => {
     const [boards, setBoards] = useState<Board[]>([])
     const [isLoadingBoards, setIsLoadingBoards] = useState(true)
     const [savedBoards, setSavedBoards] = useState<{ boardId: string; boardName: string }[]>(
@@ -184,7 +187,7 @@ const PinCard = ({ pin, onDeletePin, onRemoveFromBoard, optionsRotationDefault =
                             fill
                             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, (max-width: 1280px) 25vw, 20vw"
                             className="object-cover group-hover:brightness-75 transition-all duration-300"
-                            loading="lazy"
+                            priority={priority}
                         />
                     </div>
                 </Link>

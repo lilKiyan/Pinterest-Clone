@@ -57,8 +57,8 @@ export default function Home() {
     const observer = new IntersectionObserver(
       (entries) => {
         const firstEntry = entries[0]
-        if (firstEntry.isIntersecting && !loadingMoreRef.current) {
-          setPage(prevPage => {
+        if (firstEntry.isIntersecting && hasMore && !loadingMoreRef.current) {
+          setPage((prevPage) => {
             const nextPage = prevPage + 1
             fetchPins(nextPage)
             return nextPage
@@ -73,7 +73,15 @@ export default function Home() {
     }
 
     return () => observer.disconnect()
-  }, [fetchPins, initialLoading]) // fetchPins ثابت است
+  }, [fetchPins, initialLoading, hasMore]) // fetchPins ثابت است
+
+  const handleDeletePin = (pinId: string) => {
+    setPins((prev) => prev.filter((p) => p.id !== pinId))
+  }
+
+  const handleRemoveFromBoard = (pinId: string) => {
+    setPins((prev) => prev.filter((p) => p.id !== pinId))
+  }
 
   if (initialLoading) {
     return (
@@ -107,8 +115,15 @@ export default function Home() {
         </div>
       ) : (
         <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4 space-y-4">
-          {pins.map((pin) => (
-            <PinCard key={pin.id} pin={pin} optionsRotationDefault={-80} />
+          {pins.map((pin, index) => (
+            <PinCard
+              key={pin.id}
+              pin={pin}
+              optionsRotationDefault={-80}
+              priority={index < 4}
+              onDeletePin={handleDeletePin}
+              onRemoveFromBoard={handleRemoveFromBoard}
+            />
           ))}
         </div>
       )}
