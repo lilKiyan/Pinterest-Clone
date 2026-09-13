@@ -92,16 +92,16 @@ export default function RegisterPage() {
             <div className="absolute -top-20 -left-20 w-72 h-72 bg-red-200/40 rounded-full blur-3xl pointer-events-none" />
             <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-rose-200/30 rounded-full blur-3xl pointer-events-none" />
 
-            <div className="relative w-full max-w-md">
+            <div className="relative w-full max-w-md mb-20">
                 {/* هدر */}
                 <div className="text-center mb-6">
                     <div className="w-16 h-16 mx-auto mb-3 bg-gradient-to-br from-red-500 to-rose-600 rounded-2xl flex items-center justify-center text-white text-3xl font-black shadow-xl shadow-red-200 ring-4 ring-white">
                         P
                     </div>
-                    <h1 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-red-600 to-rose-600">
+                    <h1 className="md:text-3xl text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-red-600 to-rose-600">
                         ایجاد حساب کاربری
                     </h1>
-                    <p className="text-gray-500 text-sm mt-2">!به خانواده Pinterest بپیوندید</p>
+                    <p className="text-gray-500 text-xs md:text-sm mt-2">!به خانواده Pinterest بپیوندید</p>
                 </div>
 
                 {/* فرم */}

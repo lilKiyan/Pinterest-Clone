@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { verifyToken, COOKIE_NAME } from '@/lib/auth'
+import { verifyToken, COOKIE_NAME } from '@/lib/jwt' 
 
 // ✅ تابع رو async کن
 export async function proxy(request: Request) {
