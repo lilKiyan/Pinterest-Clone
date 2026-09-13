@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { verifyToken, COOKIE_NAME } from '@/lib/auth'
 
-export function proxy(request: Request) {
+// ✅ تابع رو async کن
+export async function proxy(request: Request) {
     // ۱. استخراج توکن از Cookie
     const cookieHeader = request.headers.get('cookie') || ''
     const token = cookieHeader
@@ -9,8 +10,8 @@ export function proxy(request: Request) {
         .find((c) => c.startsWith(`${COOKIE_NAME}=`))
         ?.split('=')[1]
 
-    // ۲. بررسی معتبر بودن توکن
-    const isLoggedIn = token ? !!verifyToken(token) : false
+    // ۲. بررسی معتبر بودن توکن (چون async شده، await لازمه)
+    const isLoggedIn = token ? !!(await verifyToken(token)) : false // ✅ await
 
     // ۳. صفحاتی که نیاز به ورود دارن
     const url = new URL(request.url)
@@ -28,7 +29,7 @@ export function proxy(request: Request) {
     return NextResponse.next()
 }
 
-// مشخص می‌کنیم proxy روی چه مسیرهایی اجرا بشه
+// ✅ /profile رو هم به matcher اضافه کن
 export const config = {
-    matcher: ['/myboards/:path*', '/create'],
+    matcher: ['/myboards/:path*', '/create', '/profile'],
 }

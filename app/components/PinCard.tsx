@@ -169,6 +169,7 @@ const PinCard = ({ pin, onDeletePin, onRemoveFromBoard, optionsRotationDefault =
             boardName: board.name, // فقط برای save لازم است
         })
     }
+    
 
     return (
         <>

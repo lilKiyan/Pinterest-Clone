@@ -40,7 +40,7 @@ export async function POST(request: Request) {
         })
 
         // ۶. ساخت توکن JWT
-        const token = signToken(newUser.id)
+        const token = await signToken(newUser.id)
         // ۷. ذخیره توکن در کوکی httpOnly
         const cookieStore = await cookies()
         cookieStore.set(COOKIE_NAME, token, {

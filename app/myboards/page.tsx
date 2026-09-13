@@ -87,6 +87,25 @@ export default function MyBoardsPage() {
         queryClient.invalidateQueries({ queryKey: ['boards'] })
     }
 
+    // ── callback بعد از حذف پین (برای آپدیت فوری UI) ──
+    const handlePinDeleted = (pinId: string) => {
+        // ۱. آپدیت فوری کش "پین‌های من" (Optimistic)
+        queryClient.setQueryData<any[]>(['my-pins'], (old) => {
+            if (!old) return old
+            return old.filter((p) => p.id !== pinId)
+        })
+
+        // ۲. آپدیت فوری کش "پین‌های ذخیره‌شده" (چون ممکنه کاربر از اونجا هم حذف کرده باشه)
+        queryClient.setQueryData<any[]>(['saved-pins'], (old) => {
+            if (!old) return old
+            return old.filter((p) => p.id !== pinId)
+        })
+
+        // ۳. invalidate برای همگام‌سازی با سرور (دفعه بعد که کاربر برگرده)
+        queryClient.invalidateQueries({ queryKey: ['my-pins'] })
+        queryClient.invalidateQueries({ queryKey: ['saved-pins'] })
+    }
+
     const renderPins = (pins: any[], loading: boolean, emptyMessage: string) => (
         <div>
             {loading ? (
@@ -103,7 +122,13 @@ export default function MyBoardsPage() {
             ) : (
                 <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4 space-y-4">
                     {pins.map((pin) => (
-                        <PinCard key={pin.id} pin={pin} optionsRotationDefault={-125} />
+                        <PinCard
+                            key={pin.id}
+                            pin={pin}
+                            optionsRotationDefault={-125}
+                            onDeletePin={handlePinDeleted}       // ✅ برای وقتی که کل پین حذف میشه
+                            onRemoveFromBoard={handlePinDeleted} // ✅ برای وقتی که پین از برد خارج میشه (توی تب ذخیره‌شده‌ها)
+                        />
                     ))}
                 </div>
             )}
