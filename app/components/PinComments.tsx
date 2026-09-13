@@ -337,7 +337,6 @@ export default function PinComments({ pinId }: PinCommentsProps) {
                             برای ارسال دیدگاه و تعامل با دیگران، ابتدا باید وارد حساب کاربری خود شوید.
                         </p>
 
-                        {/* دکمه‌ها */}
                         <div className="flex gap-3">
                             <button
                                 onClick={() => setShowLoginModal(false)}
