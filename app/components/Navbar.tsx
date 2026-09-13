@@ -422,8 +422,8 @@ const Navbar = () => {
                               }`}
                           >
                             <div className={`p-[2px] rounded-full shrink-0 transition-all ${isHighlighted
-                                ? 'bg-gradient-to-br from-fuchsia-500 via-purple-500 to-pink-500'
-                                : 'bg-gradient-to-br from-gray-200 to-gray-300'
+                              ? 'bg-gradient-to-br from-fuchsia-500 via-purple-500 to-pink-500'
+                              : 'bg-gradient-to-br from-gray-200 to-gray-300'
                               }`}>
                               <div className="relative w-9 h-9 rounded-full overflow-hidden bg-white ring-2 ring-white flex items-center justify-center text-sm font-bold text-white bg-gradient-to-br from-red-500 to-orange-500">
                                 {u.avatar ? (
@@ -451,8 +451,8 @@ const Navbar = () => {
                             </div>
 
                             <FiArrowLeft className={`w-3.5 h-3.5 shrink-0 transition-all ${isHighlighted
-                                ? 'text-fuchsia-500 -translate-x-0.5'
-                                : 'text-gray-300'
+                              ? 'text-fuchsia-500 -translate-x-0.5'
+                              : 'text-gray-300'
                               }`} />
                           </button>
                         )
@@ -490,8 +490,8 @@ const Navbar = () => {
                               }`}
                           >
                             <div className={`relative w-11 h-11 rounded-xl overflow-hidden bg-gray-100 shrink-0 transition-all ${isHighlighted
-                                ? 'ring-2 ring-red-300 shadow-md shadow-red-100'
-                                : 'ring-1 ring-black/5'
+                              ? 'ring-2 ring-red-300 shadow-md shadow-red-100'
+                              : 'ring-1 ring-black/5'
                               }`}>
                               <Image
                                 src={p.imageUrl}
@@ -509,8 +509,8 @@ const Navbar = () => {
                             </span>
 
                             <FiArrowLeft className={`w-3.5 h-3.5 shrink-0 transition-all ${isHighlighted
-                                ? 'text-red-500 -translate-x-0.5'
-                                : 'text-gray-300'
+                              ? 'text-red-500 -translate-x-0.5'
+                              : 'text-gray-300'
                               }`} />
                           </button>
                         )
@@ -558,13 +558,23 @@ const Navbar = () => {
               <button
                 onClick={toggleDropdown}
                 aria-label="منوی حساب کاربری"
-                className={`w-8 h-8 md:w-9 md:h-9 rounded-full flex items-center justify-center text-white font-bold text-sm cursor-pointer transition-transform hover:scale-105 active:scale-95 ${user
-                    ? 'bg-gradient-to-br from-red-500 to-red-600 ring-2 ring-white shadow-sm'
-                    : 'bg-gray-200 text-gray-500 ring-1 ring-gray-300 hover:bg-gray-300'
+                className={`w-8 h-8 overflow-hidden md:w-9 md:h-9 rounded-full flex items-center justify-center text-white font-bold text-sm cursor-pointer transition-transform hover:scale-105 active:scale-95 ${user
+                  ? 'bg-gradient-to-br from-red-500 to-red-600 ring-2 ring-white shadow-sm'
+                  : 'bg-gray-200 text-gray-500 ring-1 ring-gray-300 hover:bg-gray-300'
                   }`}
               >
                 {user ? (
-                  <span className="h-[16px] md:h-[18px]">{userInitial}</span>
+                  user.avatar ? (
+                    <Image
+                      src={user.avatar}
+                      alt={user.name || 'آواتار'}
+                      width={36}
+                      height={36}
+                      className="w-full h-full object-cover rounded-full"
+                    />
+                  ) : (
+                    <span className="h-[16px] md:h-[18px]">{userInitial}</span>
+                  )
                 ) : (
                   <FiUser className="w-4 h-4 md:w-5 md:h-5" />
                 )}
@@ -587,8 +597,8 @@ const Navbar = () => {
 
                 <div
                   className={`absolute left-0 mt-3 w-52 md:w-56 bg-white rounded-2xl shadow-2xl shadow-black/5 ring-1 ring-black/5 z-50 overflow-hidden origin-top-left transition-all ease-out ${isDropdownVisible
-                      ? 'opacity-100 scale-100 translate-y-0'
-                      : 'opacity-0 scale-95 -translate-y-2'
+                    ? 'opacity-100 scale-100 translate-y-0'
+                    : 'opacity-0 scale-95 -translate-y-2'
                     }`}
                   style={{ transitionDuration: `${DROPDOWN_ANIMATION_MS}ms` }}
                 >

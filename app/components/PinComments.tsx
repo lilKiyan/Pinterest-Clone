@@ -3,10 +3,12 @@
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { useAuthStore } from '@/lib/authStore'
+import { CONTENT_LIMITS } from '@/lib/validations'
 import {
     FiMessageCircle,
     FiTrash2,
     FiSend,
+    FiAlertCircle,
 } from 'react-icons/fi'
 
 type PinCommentsProps = {
@@ -21,11 +23,14 @@ export default function PinComments({ pinId, onRequireLogin }: PinCommentsProps)
     const [loadingComments, setLoadingComments] = useState(true)
     const [commentError, setCommentError] = useState('')
 
-    // مودال حذف
     const [commentToDelete, setCommentToDelete] = useState<any>(null)
     const [isModalClosing, setIsModalClosing] = useState(false)
 
-    // fetch کامنت‌ها
+    const commentLength = newComment.length
+    const isOverLimit = commentLength > CONTENT_LIMITS.COMMENT
+    const isNearLimit = commentLength > CONTENT_LIMITS.COMMENT * 0.8
+    const overBy = commentLength - CONTENT_LIMITS.COMMENT
+
     useEffect(() => {
         const fetchComments = async () => {
             try {
@@ -47,11 +52,17 @@ export default function PinComments({ pinId, onRequireLogin }: PinCommentsProps)
         e.preventDefault()
 
         if (!user) {
-            onRequireLogin?.()  
+            onRequireLogin?.()
             return
         }
 
         if (!newComment.trim()) return
+
+        if (isOverLimit) {
+            setCommentError(`کامنت نمی‌تواند بیش از ${CONTENT_LIMITS.COMMENT} کاراکتر باشد`)
+            return
+        }
+
         setCommentError('')
         try {
             const res = await fetch(`/api/pins/${pinId}/comments`, {
@@ -116,7 +127,6 @@ export default function PinComments({ pinId, onRequireLogin }: PinCommentsProps)
     }
 
     return (
-
         <div className="px-6 py-4 flex flex-col gap-4">
             {/* هدر */}
             <div className="flex items-center gap-2.5">
@@ -180,8 +190,8 @@ export default function PinComments({ pinId, onRequireLogin }: PinCommentsProps)
                                     <div className="flex-1 min-w-0">
                                         <div
                                             className={`rounded-2xl px-4 py-3 ring-1 transition-all duration-200 ${isMine
-                                                ? 'bg-gradient-to-br from-red-50/80 to-rose-50/50 ring-red-100/80'
-                                                : 'bg-gray-50/80 ring-gray-100 group-hover/comment:bg-white group-hover/comment:ring-gray-200'
+                                                    ? 'bg-gradient-to-br from-red-50/80 to-rose-50/50 ring-red-100/80'
+                                                    : 'bg-gray-50/80 ring-gray-100 group-hover/comment:bg-white group-hover/comment:ring-gray-200'
                                                 }`}
                                         >
                                             <div className="flex items-center gap-2 mb-1">
@@ -233,40 +243,72 @@ export default function PinComments({ pinId, onRequireLogin }: PinCommentsProps)
                 </div>
 
                 <div className="flex-1">
-                    <div className="relative group/input">
+                    <form onSubmit={handleAddComment} className="relative group/input">
+                        <input
+                            type="text"
+                            value={newComment}
+                            onChange={(e) => setNewComment(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' && newComment.trim() && !isOverLimit) {
+                                    e.preventDefault()
+                                    handleAddComment(e)
+                                }
+                            }}
+                            placeholder="دیدگاه خود را بنویسید..."
+                            className={`w-full bg-gray-50 ring-1 rounded-full pr-4 pl-37 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 transition-all duration-200 ${isOverLimit
+                                    ? 'ring-red-300 focus:ring-red-400'
+                                    : 'ring-gray-200/70 focus:ring-red-300/60'
+                                }`}
+                        />
+
                         <div className="absolute left-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                            {/* پیل شمارنده */}
                             {newComment.length > 0 && (
-                                <span className="hidden sm:block text-[10px] font-bold text-gray-300 tabular-nums">
-                                    {newComment.length}
+                                <span
+                                    className={`inline-flex items-center gap-0.5 h-6 px-2 rounded-full text-[10px] font-bold tabular-nums transition-all duration-200 ${isOverLimit
+                                            ? 'bg-red-100 text-red-600 ring-1 ring-red-300 animate-pulse'
+                                            : isNearLimit
+                                                ? 'bg-orange-100 text-orange-600 ring-1 ring-orange-200'
+                                                : 'bg-gray-200/80 text-gray-500'
+                                        }`}
+                                >
+                                    <span>{commentLength}</span>
+                                    <span className="opacity-40">/</span>
+                                    <span className="opacity-60">{CONTENT_LIMITS.COMMENT}</span>
                                 </span>
                             )}
+
                             <button
-                                onClick={handleAddComment}
-                                disabled={!newComment.trim()}
+                                type="submit"
+                                disabled={!newComment.trim() || isOverLimit}
                                 aria-label="ارسال کامنت"
-                                className={`h-8 px-3.5 rounded-full flex items-center gap-1.5 text-xs font-bold transition-all duration-200 cursor-pointer ${newComment.trim()
-                                    ? 'bg-gradient-to-l from-red-500 to-rose-600 text-white shadow-md shadow-red-200 hover:shadow-lg hover:shadow-red-300/60 hover:brightness-105 active:scale-95'
-                                    : 'bg-gray-200/80 text-gray-400 cursor-not-allowed'
+                                className={`h-8 px-3.5 rounded-full flex items-center gap-1.5 text-xs font-bold transition-all duration-200 cursor-pointer ${newComment.trim() && !isOverLimit
+                                        ? 'bg-gradient-to-l from-red-500 to-rose-600 text-white shadow-md shadow-red-200 hover:shadow-lg hover:shadow-red-300/60 hover:brightness-105 active:scale-95'
+                                        : 'bg-gray-200/80 text-gray-400 cursor-not-allowed'
                                     }`}
                             >
                                 ارسال
                                 <FiSend className="w-3 h-3 -scale-x-100" />
                             </button>
                         </div>
-                        <input
-                            type="text"
-                            value={newComment}
-                            onChange={(e) => setNewComment(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter' && newComment.trim()) {
-                                    e.preventDefault()
-                                    handleAddComment(e)
-                                }
-                            }}
-                            placeholder="دیدگاه خود را بنویسید..."
-                            className="w-full bg-gray-50 ring-1 ring-gray-200/70 rounded-full pr-4 pl-24 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-red-300/60 focus:shadow-[0_0_0_4px_rgba(254,226,226,0.5)] transition-all duration-200"
-                        />
-                    </div>
+                    </form>
+
+                    {/* پیام خطا */}
+                    {isOverLimit && (
+                        <div className="mt-1.5 mr-2 flex items-center gap-1.5 text-[11px] text-red-500 font-medium animate-[slideDown_0.2s_ease-out]">
+                            <FiAlertCircle className="w-3.5 h-3.5 shrink-0" />
+                            <span>
+                                {overBy} کاراکتر بیشتر از حد مجاز نوشتی.
+                            </span>
+                        </div>
+                    )}
+
+                    {/* خطای سرور */}
+                    {commentError && !isOverLimit && (
+                        <p className="mt-1.5 mr-2 text-[11px] text-red-500 font-medium">
+                            {commentError}
+                        </p>
+                    )}
                 </div>
             </div>
 
@@ -274,14 +316,11 @@ export default function PinComments({ pinId, onRequireLogin }: PinCommentsProps)
             {commentToDelete && (
                 <div
                     className={`fixed inset-0 z-[150] flex items-center justify-center p-4 ${isModalClosing
-                        ? 'animate-[fadeOut_0.2s_ease-in]'
-                        : 'animate-[fadeIn_0.2s_ease-out]'
+                            ? 'animate-[fadeOut_0.2s_ease-in]'
+                            : 'animate-[fadeIn_0.2s_ease-out]'
                         }`}
                 >
-                    <div
-                        className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
-                        onClick={closeDeleteCommentModal}
-                    />
+                    <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={closeDeleteCommentModal} />
 
                     <div className="relative bg-white rounded-3xl shadow-2xl p-6 w-full max-w-[285px] md:max-w-sm text-center">
                         <div className="w-14 h-14 mx-auto mb-4 bg-red-50 rounded-2xl flex items-center justify-center">
@@ -309,9 +348,24 @@ export default function PinComments({ pinId, onRequireLogin }: PinCommentsProps)
                 </div>
             )}
 
-
+            <style>{`
+                @keyframes commentIn {
+                    from { opacity: 0; transform: translateY(8px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                @keyframes slideDown {
+                    from { opacity: 0; transform: translateY(-4px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                @keyframes fadeIn {
+                    from { opacity: 0; }
+                    to { opacity: 1; }
+                }
+                @keyframes fadeOut {
+                    from { opacity: 1; }
+                    to { opacity: 0; }
+                }
+            `}</style>
         </div>
-
-
     )
 }

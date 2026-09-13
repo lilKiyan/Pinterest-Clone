@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
+import { validateMessageLength } from '@/lib/validations'
 
+// دریافت پیام‌های یک گفتگو
 export async function GET(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
@@ -59,6 +61,7 @@ export async function GET(
     }
 }
 
+// ارسال پیام جدید
 export async function POST(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
@@ -74,6 +77,7 @@ export async function POST(
 
         const { id } = await params
 
+        // بررسی عضویت در گفتگو
         const participant = await prisma.conversationParticipant.findUnique({
             where: {
                 conversationId_userId: {
@@ -93,6 +97,7 @@ export async function POST(
         const body = await request.json()
         const { content } = body
 
+        // ۱. خالی نبودن
         if (!content || !content.trim()) {
             return NextResponse.json(
                 { error: 'متن پیام نمی‌تواند خالی باشد' },
@@ -100,11 +105,20 @@ export async function POST(
             )
         }
 
+        const trimmed = content.trim()
+
+        // ۲. اعتبارسنجی طول پیام (قبل از ساخت)
+        const contentError = validateMessageLength(trimmed)
+        if (contentError) {
+            return NextResponse.json({ error: contentError }, { status: 400 })
+        }
+
+        // ۳. ساخت پیام
         const newMessage = await prisma.message.create({
             data: {
                 conversationId: id,
                 senderId: user.id,
-                content: content.trim(),
+                content: trimmed,
             },
             include: {
                 sender: {
@@ -118,12 +132,13 @@ export async function POST(
             },
         })
 
-        // به‌روزرسانی زمان آخرین فعالیت گفتگو
+        // ۴. به‌روزرسانی زمان آخرین فعالیت گفتگو
         await prisma.conversation.update({
             where: { id },
             data: { updatedAt: new Date() },
         })
 
+        // ۵. برگرداندن پیام ساخته‌شده
         return NextResponse.json({ message: newMessage }, { status: 201 })
     } catch (error) {
         console.error('POST /api/conversations/[id]/messages error:', error)

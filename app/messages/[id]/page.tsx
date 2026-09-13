@@ -6,7 +6,8 @@ import Link from 'next/link'
 import { useAuthStore } from '@/lib/authStore'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { IoSend } from 'react-icons/io5'
-import { FiArrowRight, FiMessageCircle, FiChevronDown } from 'react-icons/fi'
+import { FiArrowRight, FiMessageCircle, FiChevronDown, FiSend, FiAlertCircle } from 'react-icons/fi'
+import { CONTENT_LIMITS } from '@/lib/validations'
 
 type Message = {
     id: string
@@ -35,21 +36,24 @@ export default function ChatPage() {
     const { user } = useAuthStore()
     const queryClient = useQueryClient()
 
-    // ── State های UI ──
     const [newMessage, setNewMessage] = useState('')
     const [showScrollButton, setShowScrollButton] = useState(false)
     const [unreadCount, setUnreadCount] = useState(0)
     const [firstUnreadId, setFirstUnreadId] = useState<string | null>(null)
     const [initialScrollNeeded, setInitialScrollNeeded] = useState(true)
 
-    // ── Refs ──
     const prevMessagesRef = useRef<Message[]>([])
     const hasSetFirstUnread = useRef(false)
     const messagesEndRef = useRef<HTMLDivElement>(null)
     const messagesContainerRef = useRef<HTMLDivElement>(null)
     const shouldScrollAfterSend = useRef(false)
 
-    // ── Query ۱: پیام‌ها (با polling) ──
+    const messageLength = newMessage.length
+    const isOverLimit = messageLength > CONTENT_LIMITS.MESSAGE
+    const isNearLimit = messageLength > CONTENT_LIMITS.MESSAGE * 0.8
+    const overBy = messageLength - CONTENT_LIMITS.MESSAGE
+
+    // ── Query ۱: پیام‌ها ──
     const {
         data: messages = [],
         isLoading: loading,
@@ -100,11 +104,10 @@ export default function ChatPage() {
         },
     })
 
-    // ── ست کردن firstUnreadId فقط بار اول ──
+    // ── firstUnreadId فقط بار اول ──
     useEffect(() => {
         if (hasSetFirstUnread.current) return
         if (messages.length === 0 || !user) return
-
         const firstUnread = messages.find(
             (msg) => msg.senderId !== user.id && !msg.isRead
         )
@@ -112,45 +115,40 @@ export default function ChatPage() {
         hasSetFirstUnread.current = true
     }, [messages, user])
 
-    // ── علامت‌گذاری پیام‌ها به عنوان خوانده‌شده ──
+    // ── علامت‌گذاری خوانده‌شده ──
     useEffect(() => {
         if (id && user && firstUnreadId !== null) {
             fetch(`/api/conversations/${id}/read`, { method: 'POST' })
         }
     }, [id, user, firstUnreadId])
 
-    // ── رهگیری پیام‌های جدید از دیگران ──
+    // ── رهگیری پیام‌های جدید ──
     useEffect(() => {
         if (messages.length === 0) return
-
         if (prevMessagesRef.current.length === 0) {
             prevMessagesRef.current = messages
             return
         }
-
         const newFromOthers = messages.filter(
             (msg) =>
                 msg.senderId !== user?.id &&
                 !prevMessagesRef.current.some((prev) => prev.id === msg.id)
         )
-
         if (newFromOthers.length > 0) {
             const container = messagesContainerRef.current
             const nearBottom = container
                 ? container.scrollHeight - container.scrollTop - container.clientHeight < 100
                 : false
-
             if (!nearBottom) {
                 setUnreadCount((prev) => prev + newFromOthers.length)
             } else {
                 setUnreadCount(0)
             }
         }
-
         prevMessagesRef.current = messages
     }, [messages, user])
 
-    // ── اسکرول اولیه به پایین ──
+    // ── اسکرول اولیه ──
     useEffect(() => {
         if (!loading && initialScrollNeeded && messagesEndRef.current) {
             messagesEndRef.current.scrollIntoView({ behavior: 'auto' })
@@ -158,7 +156,7 @@ export default function ChatPage() {
         }
     }, [loading, messages, initialScrollNeeded])
 
-    // ── اسکرول بعد از ارسال پیام ──
+    // ── اسکرول بعد از ارسال ──
     useEffect(() => {
         if (shouldScrollAfterSend.current && messagesEndRef.current) {
             messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
@@ -185,24 +183,18 @@ export default function ChatPage() {
 
     const handleSend = (e: React.FormEvent) => {
         e.preventDefault()
-        if (!newMessage.trim() || sendMessage.isPending) return
+        if (!newMessage.trim() || sendMessage.isPending || isOverLimit) return
         sendMessage.mutate(newMessage)
     }
 
     if (!user) {
         return (
-            <main
-                dir="rtl"
-                className="h-full flex flex-col items-center justify-center gap-5 overflow-hidden bg-gradient-to-b from-gray-50 via-white to-red-50/30"
-            >
+            <main dir="rtl" className="h-full flex flex-col items-center justify-center gap-5 overflow-hidden bg-gradient-to-b from-gray-50 via-white to-red-50/30">
                 <div className="w-20 h-20 rounded-3xl bg-white shadow-lg ring-1 ring-black/5 flex items-center justify-center rotate-3">
                     <FiMessageCircle className="w-9 h-9 text-red-300" />
                 </div>
                 <p className="text-gray-700 font-bold text-lg">برای مشاهده پیام‌ها وارد شوید</p>
-                <Link
-                    href="/login"
-                    className="bg-red-600 text-white px-7 py-2.5 rounded-full font-bold text-sm shadow-lg shadow-red-200 hover:bg-red-700 transition-all no-underline"
-                >
+                <Link href="/login" className="bg-red-600 text-white px-7 py-2.5 rounded-full font-bold text-sm shadow-lg shadow-red-200 hover:bg-red-700 transition-all no-underline">
                     ورود به حساب
                 </Link>
             </main>
@@ -210,10 +202,7 @@ export default function ChatPage() {
     }
 
     return (
-        <main
-            dir="rtl"
-            className="relative h-full flex flex-col overflow-hidden bg-gradient-to-b from-gray-50 via-white to-red-50/30"
-        >
+        <main dir="rtl" className="relative h-full flex flex-col overflow-hidden bg-gradient-to-b from-gray-50 via-white to-red-50/30">
             <div className="fixed -top-24 -left-24 w-96 h-96 bg-red-100/40 rounded-full blur-3xl pointer-events-none animate-[bgFloat1_8s_ease-in-out_infinite]" />
             <div className="fixed -bottom-32 -right-32 w-[28rem] h-[28rem] bg-orange-100/30 rounded-full blur-3xl pointer-events-none animate-[bgFloat2_10s_ease-in-out_infinite]" />
 
@@ -230,11 +219,7 @@ export default function ChatPage() {
                     <div className="flex items-center gap-2.5 min-w-0 flex-1">
                         <div className="w-9 h-9 rounded-full bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center text-white font-bold text-sm ring-2 ring-white shadow-md overflow-hidden shrink-0">
                             {otherUser?.avatar ? (
-                                <img
-                                    src={otherUser.avatar}
-                                    alt={otherUser.name}
-                                    className="w-full h-full object-cover"
-                                />
+                                <img src={otherUser.avatar} alt={otherUser.name} className="w-full h-full object-cover" />
                             ) : (
                                 otherUser?.username?.charAt(0).toUpperCase() || '؟'
                             )}
@@ -254,11 +239,7 @@ export default function ChatPage() {
                 </div>
             </header>
 
-            <div
-                ref={messagesContainerRef}
-                onScroll={handleScroll}
-                className="flex-1 min-h-0 overflow-y-auto px-3 sm:px-4 py-6 relative"
-            >
+            <div ref={messagesContainerRef} onScroll={handleScroll} className="flex-1 min-h-0 overflow-y-auto px-3 sm:px-4 py-6 relative">
                 <div className="max-w-2xl mx-auto space-y-3">
                     {loading ? (
                         <div className="flex justify-center py-20">
@@ -306,8 +287,7 @@ export default function ChatPage() {
                                         </div>
                                     )}
                                     <div
-                                        className={`flex items-end gap-2 ${isMine ? 'justify-start' : 'justify-end'
-                                            } ${isMine
+                                        className={`flex items-end gap-2 ${isMine ? 'justify-start' : 'justify-end'} ${isMine
                                                 ? 'animate-[messagePopMine_0.35s_cubic-bezier(0.34,1.56,0.64,1)]'
                                                 : 'animate-[messagePopTheirs_0.35s_cubic-bezier(0.34,1.56,0.64,1)]'
                                             }`}
@@ -320,10 +300,7 @@ export default function ChatPage() {
                                                 }`}
                                         >
                                             <p className="break-words whitespace-pre-wrap">{message.content}</p>
-                                            <span
-                                                className={`text-[10px] mt-1 block tabular-nums ${isMine ? 'text-white/70' : 'text-gray-400'
-                                                    }`}
-                                            >
+                                            <span className={`text-[10px] mt-1 block tabular-nums ${isMine ? 'text-white/70' : 'text-gray-400'}`}>
                                                 {new Date(message.createdAt).toLocaleTimeString('fa-IR', {
                                                     hour: '2-digit',
                                                     minute: '2-digit',
@@ -335,12 +312,7 @@ export default function ChatPage() {
                                             <div className={`w-7 shrink-0 ${nextSame ? 'invisible' : ''}`}>
                                                 <div className="w-7 h-7 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center text-gray-600 text-[10px] font-bold ring-2 ring-white overflow-hidden shadow-sm">
                                                     {message.sender?.avatar ? (
-                                                        <img
-                                                            src={message.sender.avatar}
-                                                            alt=""
-                                                            className="w-full h-full object-cover"
-                                                            loading="lazy"
-                                                        />
+                                                        <img src={message.sender.avatar} alt="" className="w-full h-full object-cover" loading="lazy" />
                                                     ) : (
                                                         message.sender?.username?.charAt(0).toUpperCase() || '؟'
                                                     )}
@@ -380,71 +352,107 @@ export default function ChatPage() {
             <footer className="shrink-0 z-30 bg-white/90 backdrop-blur-xl border-t border-gray-100 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
                 <form
                     onSubmit={handleSend}
-                    className="max-w-2xl mx-auto flex items-center gap-2 px-3 sm:px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+                    className="max-w-2xl mx-auto px-3 sm:px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
                 >
-                    <button
-                        type="submit"
-                        disabled={!newMessage.trim() || sendMessage.isPending}
-                        aria-label="ارسال پیام"
-                        className={`shrink-0 w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 cursor-pointer ${newMessage.trim() && !sendMessage.isPending
-                                ? 'bg-gradient-to-br from-red-500 to-rose-600 text-white shadow-lg shadow-red-300/60 hover:shadow-xl hover:-translate-y-0.5 active:scale-90'
-                                : 'bg-gray-200/80 text-gray-400 cursor-not-allowed scale-95'
-                            }`}
-                    >
-                        {sendMessage.isPending ? (
-                            <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                        ) : (
-                            <IoSend
-                                className={`w-5 h-5 me-1 ${newMessage.trim() ? 'animate-[sendPop_0.3s_ease-out]' : ''
+                    <div className="flex items-center gap-2.5">
+                        {/* دکمه ارسال */}
+                        <button
+                            type="submit"
+                            disabled={!newMessage.trim() || sendMessage.isPending || isOverLimit}
+                            aria-label="ارسال پیام"
+                            className={`shrink-0 w-11 h-11 rounded-full flex items-center justify-center transition-all duration-300 cursor-pointer ${newMessage.trim() && !sendMessage.isPending && !isOverLimit
+                                    ? 'bg-gradient-to-br from-red-500 to-rose-600 text-white shadow-lg shadow-red-300/60 hover:shadow-xl hover:-translate-y-0.5 active:scale-90'
+                                    : 'bg-gray-200/80 text-gray-400 cursor-not-allowed scale-95'
+                                }`}
+                        >
+                            {sendMessage.isPending ? (
+                                <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                            ) : (
+                                <FiSend className="w-5 h-5 -scale-x-100" />
+                            )}
+                        </button>
+
+                        {/* input + counter */}
+                        <div className="relative flex-1 min-w-0">
+                            <input
+                                type="text"
+                                value={newMessage}
+                                onChange={(e) => setNewMessage(e.target.value)}
+                                placeholder="پیام خود را بنویسید..."
+                                className={`w-full bg-gray-100 ring-1 rounded-full px-5 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 transition-all duration-200 ${isOverLimit
+                                        ? 'ring-red-300 focus:ring-red-400'
+                                        : 'ring-gray-200/70 focus:ring-red-300/60 pl-18'
                                     }`}
                             />
-                        )}
-                    </button>
 
-                    <input
-                        type="text"
-                        value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
-                        placeholder="پیام خود را بنویسید..."
-                        className="flex-1 min-w-0 bg-gray-100 ring-1 ring-gray-200/70 rounded-xl px-5 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-red-300/60 transition-all duration-200"
-                    />
+                            {/* پیل شمارنده */}
+                            {newMessage.length > 0 && (
+                                <span
+                                    className={`absolute left-2.5 top-1/2 -translate-y-1/2 inline-flex items-center gap-0.5 h-6 px-2 rounded-full text-[10px] font-bold tabular-nums transition-all duration-200 ${isOverLimit
+                                            ? 'bg-red-100 text-red-600 ring-1 ring-red-300 animate-pulse'
+                                            : isNearLimit
+                                                ? 'bg-orange-100 text-orange-600 ring-1 ring-orange-200'
+                                                : 'bg-gray-200/80 text-gray-500'
+                                        }`}
+                                >
+                                    <span>{messageLength}</span>
+                                    <span className="opacity-40">/</span>
+                                    <span className="opacity-60">{CONTENT_LIMITS.MESSAGE}</span>
+                                </span>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* پیام خطا */}
+                    {isOverLimit && (
+                        <div className="mt-2 mr-14 flex items-center gap-1.5 text-[11px] text-red-500 font-medium animate-[slideDown_0.2s_ease-out]">
+                            <FiAlertCircle className="w-3.5 h-3.5 shrink-0" />
+                            <span>
+                                {overBy} کاراکتر بیشتر از حد مجاز نوشتی. لطفاً کوتاهش کن.
+                            </span>
+                        </div>
+                    )}
                 </form>
             </footer>
 
             <style>{`
-        @keyframes chatIn {
-          from { opacity: 0; transform: translateY(10px) scale(0.97); }
-          to { opacity: 1; transform: translateY(0) scale(1); }
-        }
-        @keyframes messagePopMine {
-          0% { opacity: 0; transform: translateX(20px) scale(0.9); }
-          100% { opacity: 1; transform: translateX(0) scale(1); }
-        }
-        @keyframes messagePopTheirs {
-          0% { opacity: 0; transform: translateX(-20px) scale(0.9); }
-          100% { opacity: 1; transform: translateX(0) scale(1); }
-        }
-        @keyframes sendPop {
-          0% { transform: scale(0.5) rotate(-15deg); }
-          60% { transform: scale(1.2) rotate(5deg); }
-          100% { transform: scale(1) rotate(0deg); }
-        }
-        @keyframes bgFloat1 {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          50% { transform: translate(20px, 15px) scale(1.1); }
-        }
-        @keyframes bgFloat2 {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          50% { transform: translate(-25px, -20px) scale(1.15); }
-        }
-        @keyframes bounceSmooth {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-6px); }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          * { animation: none !important; }
-        }
-      `}</style>
+                @keyframes chatIn {
+                    from { opacity: 0; transform: translateY(10px) scale(0.97); }
+                    to { opacity: 1; transform: translateY(0) scale(1); }
+                }
+                @keyframes messagePopMine {
+                    0% { opacity: 0; transform: translateX(20px) scale(0.9); }
+                    100% { opacity: 1; transform: translateX(0) scale(1); }
+                }
+                @keyframes messagePopTheirs {
+                    0% { opacity: 0; transform: translateX(-20px) scale(0.9); }
+                    100% { opacity: 1; transform: translateX(0) scale(1); }
+                }
+                @keyframes sendPop {
+                    0% { transform: scale(0.5) rotate(-15deg); }
+                    60% { transform: scale(1.2) rotate(5deg); }
+                    100% { transform: scale(1) rotate(0deg); }
+                }
+                @keyframes bgFloat1 {
+                    0%, 100% { transform: translate(0, 0) scale(1); }
+                    50% { transform: translate(20px, 15px) scale(1.1); }
+                }
+                @keyframes bgFloat2 {
+                    0%, 100% { transform: translate(0, 0) scale(1); }
+                    50% { transform: translate(-25px, -20px) scale(1.15); }
+                }
+                @keyframes bounceSmooth {
+                    0%, 100% { transform: translateY(0); }
+                    50% { transform: translateY(-6px); }
+                }
+                @keyframes slideDown {
+                    from { opacity: 0; transform: translateY(-4px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                @media (prefers-reduced-motion: reduce) {
+                    * { animation: none !important; }
+                }
+            `}</style>
         </main>
     )
 }

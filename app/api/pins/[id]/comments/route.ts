@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
+import { validateCommentLength } from '@/lib/validations'
 
 // دریافت کامنت‌های یک پین
 export async function GET(
@@ -53,6 +54,7 @@ export async function POST(
         const body = await request.json()
         const { content } = body
 
+        // ۱. خالی نبودن
         if (!content || !content.trim()) {
             return NextResponse.json(
                 { error: 'متن کامنت نمی‌تواند خالی باشد' },
@@ -60,6 +62,15 @@ export async function POST(
             )
         }
 
+        const trimmed = content.trim()
+
+        // ۲. اعتبارسنجی طول کامنت (قبل از ساخت)
+        const contentError = validateCommentLength(trimmed)
+        if (contentError) {
+            return NextResponse.json({ error: contentError }, { status: 400 })
+        }
+
+        // ۳. بررسی وجود پین
         const pin = await prisma.pin.findUnique({ where: { id } })
         if (!pin) {
             return NextResponse.json(
@@ -68,9 +79,10 @@ export async function POST(
             )
         }
 
+        // ۴. ساخت کامنت
         const newComment = await prisma.comment.create({
             data: {
-                content: content.trim(),
+                content: trimmed,
                 userId: user.id,
                 pinId: id,
             },
@@ -86,6 +98,7 @@ export async function POST(
             },
         })
 
+        // ۵. برگرداندن کامنت ساخته‌شده
         return NextResponse.json({ comment: newComment }, { status: 201 })
     } catch (error) {
         console.error('POST /api/pins/[id]/comments error:', error)
