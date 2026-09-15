@@ -128,7 +128,7 @@ const SaveToBoardDropdown = ({
     return (
         <div
             ref={containerRef}
-            className="absolute top-3 left-3 right-3 flex items-center justify-between gap-2"
+            className="absolute top-3 left-3 right-3 hidden md:flex items-center justify-between gap-2"
         >
             <div className="relative" ref={pillWrapperRef}>
                 {/* دکمه تریگر */}
