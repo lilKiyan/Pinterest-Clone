@@ -17,24 +17,29 @@ export async function comparePassword(password: string, hashedPassword: string) 
 }
 
 export async function getCurrentUser() {
-    const cookieStore = await cookies()
-    const token = cookieStore.get(COOKIE_NAME)?.value
-    if (!token) return null
+    try {
+        const cookieStore = await cookies()
+        const token = cookieStore.get(COOKIE_NAME)?.value
+        if (!token) return null
 
-    const payload = await verifyToken(token)
-    if (!payload) return null
+        const payload = await verifyToken(token)
+        if (!payload) return null
 
-    const user = await prisma.user.findUnique({
-        where: { id: payload.userId },
-        select: {
-            id: true,
-            email: true,
-            username: true,
-            name: true,
-            avatar: true,
-            bio: true,
-        },
-    })
+        const user = await prisma.user.findUnique({
+            where: { id: payload.userId },
+            select: {
+                id: true,
+                email: true,
+                username: true,
+                name: true,
+                avatar: true,
+                bio: true,
+            },
+        })
 
-    return user
+        return user
+    } catch (error) {
+        console.error('getCurrentUser error:', error)
+        return null  // ✅ به جای کرش، null برگردون
+    }
 }
