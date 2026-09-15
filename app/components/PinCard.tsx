@@ -3,8 +3,8 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import dynamic from 'next/dynamic'
-import { useState, useEffect } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { FiUpload, FiCheckCircle, FiFolder } from 'react-icons/fi'
 import type { Board } from './SaveToBoardDropdown'
 
@@ -38,7 +38,7 @@ type PinCardProps = {
         description?: string
         imageUrl: string
         isOwner?: boolean
-        imageWidth?: number | null   // ✅ اضافه شد
+        imageWidth?: number | null
         imageHeight?: number | null
         savedBoards?: { boardId: string; boardName: string }[]
     }
@@ -49,23 +49,71 @@ type PinCardProps = {
     priority?: boolean
 }
 
-
-
 type SaveMutationVariables = {
     pinId: string
     boardId: string
     action: 'save' | 'unsave'
-    boardName?: string   // ✅ اضافه شد
+    boardName?: string
 }
 
-const PinCard = ({ pin, onDeletePin, onRemoveFromBoard, optionsRotationDefault = -90, menuExcluded, priority = false }: PinCardProps) => {
-    const [boards, setBoards] = useState<Board[]>([])
-    const [isLoadingBoards, setIsLoadingBoards] = useState(true)
-    const [savedBoards, setSavedBoards] = useState<{ boardId: string; boardName: string }[]>(
-        pin.savedBoards || []
-    )
+const PinCard = ({
+    pin,
+    onDeletePin,
+    onRemoveFromBoard,
+    optionsRotationDefault = -90,
+    menuExcluded,
+    priority = false,
+}: PinCardProps) => {
     const queryClient = useQueryClient()
 
+    // ── savedBoards از خود pin مشتق میشه (نه state جدا) ──
+    const savedBoards = pin.savedBoards || []
+
+    // ── State های UI ──
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+    const [showDeletedToast, setShowDeletedToast] = useState(false)
+    const [isSaveMenuOpen, setIsSaveMenuOpen] = useState(false)
+
+    // ── Query: بردهای کاربر (مشترک بین همه‌ی PinCard ها) ──
+    const { data: boardsRaw = [], isLoading: isLoadingBoards } = useQuery({
+        queryKey: ['boards'],
+        queryFn: async () => {
+            const res = await fetch('/api/boards')
+            if (!res.ok) throw new Error('خطا در دریافت بردها')
+            return res.json()
+        },
+        staleTime: 60 * 1000,
+    })
+
+    const boards: Board[] = boardsRaw.map((b: any) => ({
+        id: b.id,
+        name: b.name,
+        thumbnail: b.pins?.[0]?.imageUrl || '/placeholder.jpg',
+        isTopChoice: false,
+    }))
+
+    // ── Mutation: ساخت برد جدید ──
+    const createBoardMutation = useMutation({
+        mutationFn: async (name: string) => {
+            const res = await fetch('/api/boards', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name }),
+            })
+            if (!res.ok) throw new Error('خطا در ساخت برد')
+            return res.json()
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['boards'] })
+        },
+    })
+
+    const handleCreateBoard = (name: string) => {
+        createBoardMutation.mutate(name)
+    }
+
+    // ── Mutation: ذخیره/حذف پین از برد ──
     const saveMutation = useMutation({
         mutationFn: async ({ pinId, boardId, action }: SaveMutationVariables) => {
             const res = await fetch('/api/saves', {
@@ -79,104 +127,76 @@ const PinCard = ({ pin, onDeletePin, onRemoveFromBoard, optionsRotationDefault =
             }
             return res.json()
         },
-        onSuccess: (_, variables: SaveMutationVariables) => {
-            if (variables.action === 'save') {
-                setSavedBoards((prev) => [
-                    ...prev,
-                    { boardId: variables.boardId, boardName: variables.boardName || '' },
-                ])
-            } else {
-                setSavedBoards((prev) => prev.filter((sb) => sb.boardId !== variables.boardId))
-                if (onRemoveFromBoard) {
-                    onRemoveFromBoard(variables.pinId)
+        onSuccess: (_, variables) => {
+            // ✅ آپدیت مستقیم cache برای UX فوری
+            queryClient.setQueryData(['pins'], (old: any) => {
+                if (!old) return old
+                return {
+                    ...old,
+                    pages: old.pages.map((page: any) => ({
+                        ...page,
+                        pins: page.pins.map((p: any) => {
+                            if (p.id !== variables.pinId) return p
+
+                            if (variables.action === 'save') {
+                                return {
+                                    ...p,
+                                    savedBoards: [
+                                        ...(p.savedBoards || []),
+                                        {
+                                            boardId: variables.boardId,
+                                            boardName: variables.boardName || '',
+                                        },
+                                    ],
+                                }
+                            } else {
+                                return {
+                                    ...p,
+                                    savedBoards: (p.savedBoards || []).filter(
+                                        (sb: any) => sb.boardId !== variables.boardId
+                                    ),
+                                }
+                            }
+                        }),
+                    })),
                 }
+            })
+
+            // اگه از برد حذف شد، به والد اطلاع بده
+            if (variables.action === 'unsave' && onRemoveFromBoard) {
+                onRemoveFromBoard(variables.pinId)
             }
-            queryClient.invalidateQueries({ queryKey: ['pins'] })
+
+            // invalidate کش‌های دیگه (نه pins چون دستی آپدیت شد)
             queryClient.invalidateQueries({ queryKey: ['saved-pins'] })
-            queryClient.invalidateQueries({ queryKey: ['boards'] })
         },
     })
-
-    const [isEditModalOpen, setIsEditModalOpen] = useState(false)
-    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
-    const [showDeletedToast, setShowDeletedToast] = useState(false)
-
-    // وضعیت باز بودن منوی ذخیره (برای اینکه لایه hover موقع باز بودن منو محو نشه)
-    const [isSaveMenuOpen, setIsSaveMenuOpen] = useState(false)
-
-
-    // بارگذاری بردهای کاربر
-    useEffect(() => {
-        const fetchBoards = async () => {
-            try {
-                const res = await fetch('/api/boards')
-                if (!res.ok) throw new Error('خطا در دریافت بردها')
-                const data = await res.json()
-                const mappedBoards = data.map((b: any) => ({
-                    id: b.id,
-                    name: b.name,
-                    thumbnail: b.pins?.[0]?.imageUrl || '/placeholder.jpg',
-                    isTopChoice: false,
-                }))
-                setBoards(mappedBoards)
-            } catch (error) {
-                console.error(error)
-            } finally {
-                setIsLoadingBoards(false)
-            }
-        }
-        fetchBoards()
-    }, [])
-
-    // ساخت برد جدید از داخل دراپ‌داون
-    const handleCreateBoard = async (name: string) => {
-        try {
-            const res = await fetch('/api/boards', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name }),
-            })
-            if (!res.ok) throw new Error('خطا در ساخت برد')
-            const newBoard = await res.json()
-            setBoards((prev) => [
-                { id: newBoard.id, name: newBoard.name, thumbnail: '/placeholder.jpg', isTopChoice: false },
-                ...prev,
-            ])
-        } catch (error) {
-            console.error(error)
-        }
-    }
 
     const handleDownload = () => {
         const link = document.createElement('a')
         link.href = pin.imageUrl
-        link.download = pin.title || 'pin' // نام فایل دانلودی
+        link.download = pin.title || 'pin'
         document.body.appendChild(link)
         link.click()
         document.body.removeChild(link)
     }
 
-    // ذخیره یا حذف پین از برد
     const handleToggleSave = (board: Board) => {
         const isCurrentlySaved = savedBoards.some((sb) => sb.boardId === board.id)
         const action = isCurrentlySaved ? 'unsave' : 'save'
 
-        // صدا زدن mutation
         saveMutation.mutate({
             pinId: pin.id,
             boardId: board.id,
             action,
-            boardName: board.name, // فقط برای save لازم است
+            boardName: board.name,
         })
     }
-    
 
     return (
         <>
             <div className="group relative break-inside-avoid mb-4">
-                {/* ── تصویر لینک‌دار به صفحه جزئیات ──
-                    overflow-hidden فقط روی همین کانتینر است،
-                    بنابراین دراپ‌داون (که بیرون این است) clip نمی‌شود */}
+                {/* ── تصویر لینک‌دار ── */}
                 <Link href={`/pin/${pin.id}`} className="block no-underline">
                     <div
                         className="relative overflow-hidden rounded-[15px] bg-gray-100 ring-1 ring-black/5 group-hover:ring-black/10 transition-all"
@@ -193,9 +213,7 @@ const PinCard = ({ pin, onDeletePin, onRemoveFromBoard, optionsRotationDefault =
                     </div>
                 </Link>
 
-                {/* ── لایه hover: برادرِ Link (نه فرزندش) ──
-                    pointer-events-none روی خود لایه: کلیک روی جای خالی به
-                    لینکِ زیرش پاس می‌دهد و به صفحه جزئیات می‌رود */}
+                {/* ── لایه hover ── */}
                 <div
                     className={`absolute inset-0 z-20 transition-opacity duration-200 pointer-events-none ${isSaveMenuOpen
                         ? 'opacity-100'
@@ -226,7 +244,7 @@ const PinCard = ({ pin, onDeletePin, onRemoveFromBoard, optionsRotationDefault =
                     </button>
                 </div>
 
-                {/* زیر تصویر: وضعیت ذخیره و منوی سه‌نقطه */}
+                {/* ── زیر تصویر: وضعیت ذخیره + منوی سه‌نقطه ── */}
                 <div className="mt-1.5 px-1 flex items-center justify-between gap-2">
                     <p className="flex items-center gap-1.5 text-xs text-gray-500 truncate min-w-0">
                         <FiFolder className="w-3 h-3 shrink-0 text-gray-400" />
@@ -249,7 +267,7 @@ const PinCard = ({ pin, onDeletePin, onRemoveFromBoard, optionsRotationDefault =
                 </div>
             </div>
 
-            {/* مودال ویرایش پین (dynamic) */}
+            {/* مودال ویرایش */}
             {isEditModalOpen && (
                 <EditPinModal
                     pinId={pin.id}
@@ -259,7 +277,7 @@ const PinCard = ({ pin, onDeletePin, onRemoveFromBoard, optionsRotationDefault =
                 />
             )}
 
-            {/* مودال حذف پین (dynamic) */}
+            {/* مودال حذف */}
             {isDeleteModalOpen && (
                 <DeletePinModal
                     pinId={pin.id}

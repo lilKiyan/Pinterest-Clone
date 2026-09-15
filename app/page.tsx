@@ -1,68 +1,51 @@
 "use client"
 
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useRef } from 'react'
+import { useInfiniteQuery,useQueryClient } from '@tanstack/react-query'
 import PinCard from './components/PinCard'
 import { FiAlertCircle, FiImage, FiCheckCircle } from 'react-icons/fi'
 
 const LIMIT = 12
 
 export default function Home() {
-  const [pins, setPins] = useState<any[]>([])
-  const [page, setPage] = useState(1)
-  const [hasMore, setHasMore] = useState(true)
-  const [initialLoading, setInitialLoading] = useState(true)
-  const [loadingMore, setLoadingMore] = useState(false)
-  const [error, setError] = useState('')
-
   const sentinelRef = useRef<HTMLDivElement | null>(null)
-  const loadingMoreRef = useRef(false) // جلوگیری از درخواست‌های همزمان
+  const queryClient = useQueryClient()
 
-  const fetchPins = useCallback(async (pageNum: number) => {
-    console.log('fetchPins called with page:', pageNum);
-    if (loadingMoreRef.current) return
-
-    loadingMoreRef.current = true
-    if (pageNum === 1) setInitialLoading(true)
-    else setLoadingMore(true)
-
-    try {
-      const res = await fetch(`/api/pins?page=${pageNum}&limit=${LIMIT}`)
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+    isError,
+    error,
+  } = useInfiniteQuery({
+    queryKey: ['pins'],
+    queryFn: async ({ pageParam = 1 }) => {
+      const res = await fetch(`/api/pins?page=${pageParam}&limit=${LIMIT}`)
       if (!res.ok) throw new Error('خطا در دریافت پین‌ها')
-      const data = await res.json()
+      return res.json()
+    },
+    getNextPageParam: (lastPage, allPages) => {
+      return lastPage.hasMore ? allPages.length + 1 : undefined
+    },
+    initialPageParam: 1,
+    staleTime: 0, // ✅ مهم برای Vercel: همیشه تازه باشه
+  })
 
-      if (pageNum === 1) {
-        setPins(data.pins)
-      } else {
-        setPins(prev => [...prev, ...data.pins])
-      }
-      setHasMore(data.hasMore)
-      setPage(pageNum)
-      console.log('API Response:', data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'خطا')
-    } finally {
-      loadingMoreRef.current = false
-      setInitialLoading(false)
-      setLoadingMore(false)
-    }
-  }, [])
+  // ✅ استخراج پین‌ها از صفحات
+  const pins = data?.pages.flatMap((page) => page.pins) ?? []
 
-  // لود اولیه
-  useEffect(() => {
-    fetchPins(1)
-  }, [fetchPins])
-
-  // تنظیم IntersectionObserver فقط یک‌بار
+  // ── IntersectionObserver برای infinite scroll ──
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
-        const firstEntry = entries[0]
-        if (firstEntry.isIntersecting && hasMore && !loadingMoreRef.current) {
-          setPage((prevPage) => {
-            const nextPage = prevPage + 1
-            fetchPins(nextPage)
-            return nextPage
-          })
+        if (
+          entries[0].isIntersecting &&
+          hasNextPage &&
+          !isFetchingNextPage
+        ) {
+          fetchNextPage()
         }
       },
       { rootMargin: '50px' }
@@ -73,17 +56,13 @@ export default function Home() {
     }
 
     return () => observer.disconnect()
-  }, [fetchPins, initialLoading, hasMore]) // fetchPins ثابت است
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage])
 
-  const handleDeletePin = (pinId: string) => {
-    setPins((prev) => prev.filter((p) => p.id !== pinId))
+  const handlePinUpdate = () => {
+    queryClient.invalidateQueries({ queryKey: ['pins'] })
   }
 
-  const handleRemoveFromBoard = (pinId: string) => {
-    setPins((prev) => prev.filter((p) => p.id !== pinId))
-  }
-
-  if (initialLoading) {
+  if (isLoading) {
     return (
       <main className="min-h-[60vh] flex items-center justify-center">
         <div className="w-9 h-9 border-[3px] border-gray-200 border-t-red-500 rounded-full animate-spin" />
@@ -91,12 +70,12 @@ export default function Home() {
     )
   }
 
-  if (error) {
+  if (isError) {
     return (
       <main className="min-h-[60vh] flex items-center justify-center px-4">
         <div className="flex items-center gap-3 bg-red-50 border border-red-200 text-red-600 px-5 py-4 rounded-2xl text-sm max-w-md">
           <FiAlertCircle className="w-5 h-5 shrink-0" />
-          <span>{error}</span>
+          <span>{(error as Error).message}</span>
         </div>
       </main>
     )
@@ -121,8 +100,8 @@ export default function Home() {
               pin={pin}
               optionsRotationDefault={-80}
               priority={index < 4}
-              onDeletePin={handleDeletePin}
-              onRemoveFromBoard={handleRemoveFromBoard}
+              onDeletePin={handlePinUpdate}
+              onRemoveFromBoard={handlePinUpdate}
             />
           ))}
         </div>
@@ -130,14 +109,16 @@ export default function Home() {
 
       <div ref={sentinelRef} className="h-4" />
 
-      {loadingMore && (
+      {isFetchingNextPage && (
         <div className="flex justify-center items-center gap-2.5 py-8">
           <div className="w-6 h-6 border-[3px] border-gray-200 border-t-red-500 rounded-full animate-spin" />
-          <span className="text-xs text-gray-400 font-medium">در حال بارگذاری پین‌های بیشتر...</span>
+          <span className="text-xs text-gray-400 font-medium">
+            در حال بارگذاری پین‌های بیشتر...
+          </span>
         </div>
       )}
 
-      {!hasMore && pins.length > 0 && (
+      {!hasNextPage && pins.length > 0 && (
         <div className="flex flex-col items-center justify-center gap-2.5 py-10 mb-10 md:mb-0">
           <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center">
             <FiCheckCircle className="w-5 h-5 text-red-500" />

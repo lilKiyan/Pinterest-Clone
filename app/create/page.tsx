@@ -61,14 +61,10 @@ export default function CreatePage() {
             return pinRes.json()
         },
         onSuccess: () => {
-            // ✅ کش صفحات مرتبط رو invalidate کن
-            queryClient.invalidateQueries({ queryKey: ['pins'] })
-            queryClient.invalidateQueries({ queryKey: ['my-pins'] })
-
-            // ✅ ناوبری SPA (بهتر از window.location.href)
+            queryClient.invalidateQueries({ queryKey: ['pins'], refetchType: 'all' })
+            queryClient.invalidateQueries({ queryKey: ['my-pins'], refetchType: 'all' })
             router.push('/')
-            router.refresh()
-        },
+        }
     })
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
