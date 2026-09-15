@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuthStore } from '@/lib/authStore'
-import { useState, useEffect } from 'react'
 import {
     FiHome,
     FiPlus,
@@ -12,38 +11,27 @@ import {
     FiSearch,
     FiMessageCircle,
 } from 'react-icons/fi'
+import { useQuery } from '@tanstack/react-query'
 
 const MobileNav = () => {
     const pathname = usePathname()
-    const [unreadCount, setUnreadCount] = useState(0)
     const { user } = useAuthStore()
 
-    // ✅ فقط یک useEffect برای دریافت تعداد پیام‌های نخوانده
-    useEffect(() => {
-        if (!user) return
+    // ✅ فقط یک useQuery
+    const { data: unreadData } = useQuery({
+        queryKey: ['unread-count', user?.id],
+        queryFn: async () => {
+            const res = await fetch('/api/notifications/unread-count')
+            if (!res.ok) return { count: 0 }
+            return res.json()
+        },
+        enabled: !!user,
+        refetchInterval: 15000, // هر ۱۵ ثانیه
+        staleTime: 10000,
+    })
 
-        const fetchUnreadCount = async () => {
-            try {
-                const res = await fetch('/api/conversations')
-                if (res.ok) {
-                    const data = await res.json()
-                    const total = (data.conversations || []).reduce(
-                        (sum: number, conv: any) => sum + (conv.unreadCount || 0),
-                        0
-                    )
-                    setUnreadCount(total)
-                }
-            } catch (err) {
-                console.error(err)
-            }
-        }
+    const unreadCount = unreadData?.count ?? 0
 
-        fetchUnreadCount()
-        const interval = setInterval(fetchUnreadCount, 10000)
-        return () => clearInterval(interval)
-    }, [user])
-
-    // ✅ شرط مخفی‌سازی بعد از Hook ها
     if (pathname.startsWith('/messages/')) {
         return null
     }
@@ -116,19 +104,17 @@ const MobileNav = () => {
 
                                     {/* خود دکمه — بیرون‌زده از داک */}
                                     <span
-                                        className={`relative w-[47px] h-[47px] -mt-6 rounded-[16px] flex items-center justify-center shadow-lg transition-all duration-300 active:scale-90 ${
-                                            isCreateActive
-                                                ? 'bg-gradient-to-br from-red-600 to-rose-600 shadow-red-400/40 scale-105'
-                                                : 'bg-gradient-to-br from-red-500 via-rose-500 to-orange-500 shadow-red-300/50 group-hover:-translate-y-0.5'
-                                        }`}
+                                        className={`relative w-[47px] h-[47px] -mt-6 rounded-[16px] flex items-center justify-center shadow-lg transition-all duration-300 active:scale-90 ${isCreateActive
+                                            ? 'bg-gradient-to-br from-red-600 to-rose-600 shadow-red-400/40 scale-105'
+                                            : 'bg-gradient-to-br from-red-500 via-rose-500 to-orange-500 shadow-red-300/50 group-hover:-translate-y-0.5'
+                                            }`}
                                     >
                                         {/* هایلایت شیشه‌ای داخل دکمه */}
                                         <span className="absolute top-1 inset-x-2.5 h-1/3 rounded-t-[14px] bg-white/20 pointer-events-none" />
 
                                         <FiPlus
-                                            className={`relative w-5 h-5 text-white drop-shadow transition-transform duration-500 ${
-                                                isCreateActive ? 'rotate-45' : 'group-hover:rotate-90'
-                                            }`}
+                                            className={`relative w-5 h-5 text-white drop-shadow transition-transform duration-500 ${isCreateActive ? 'rotate-45' : 'group-hover:rotate-90'
+                                                }`}
                                         />
                                     </span>
                                 </Link>
@@ -141,9 +127,8 @@ const MobileNav = () => {
                                 key={item.href}
                                 href={item.href}
                                 aria-label={item.label}
-                                className={`relative flex-1 flex flex-col items-center justify-center no-underline group transition-transform duration-300 ${
-                                    active ? '-translate-y-0.5' : ''
-                                }`}
+                                className={`relative flex-1 flex flex-col items-center justify-center no-underline group transition-transform duration-300 ${active ? '-translate-y-0.5' : ''
+                                    }`}
                             >
                                 {/* هاله‌ی درخشش پشت آیکون فعال */}
                                 {active && (
@@ -153,11 +138,10 @@ const MobileNav = () => {
                                 {/* آیکون با badge */}
                                 <span className="relative">
                                     <Icon
-                                        className={`relative w-[18px] h-[18px] transition-all duration-500 ${
-                                            active
-                                                ? 'text-red-600 scale-110 drop-shadow-[0_1px_5px_rgba(239,68,68,0.4)] animate-[iconPop_0.5s_cubic-bezier(0.34,1.56,0.64,1)]'
-                                                : 'text-gray-400 group-hover:text-gray-600 group-hover:scale-105 group-active:scale-90'
-                                        }`}
+                                        className={`relative w-[18px] h-[18px] transition-all duration-500 ${active
+                                            ? 'text-red-600 scale-110 drop-shadow-[0_1px_5px_rgba(239,68,68,0.4)] animate-[iconPop_0.5s_cubic-bezier(0.34,1.56,0.64,1)]'
+                                            : 'text-gray-400 group-hover:text-gray-600 group-hover:scale-105 group-active:scale-90'
+                                            }`}
                                     />
 
                                     {/* badge برای پیام‌های نخوانده */}
@@ -171,9 +155,8 @@ const MobileNav = () => {
 
                                 {/* نقطه‌ی نورانی زیر آیتم فعال */}
                                 <span
-                                    className={`absolute bottom-1.5 w-[3px] h-[3px] rounded-full bg-gradient-to-l from-red-500 to-orange-400 shadow-[0_0_5px_rgba(239,68,68,0.7)] transition-all duration-300 ${
-                                        active ? 'opacity-100 scale-100' : 'opacity-0 scale-0'
-                                    }`}
+                                    className={`absolute bottom-1.5 w-[3px] h-[3px] rounded-full bg-gradient-to-l from-red-500 to-orange-400 shadow-[0_0_5px_rgba(239,68,68,0.7)] transition-all duration-300 ${active ? 'opacity-100 scale-100' : 'opacity-0 scale-0'
+                                        }`}
                                 />
                             </Link>
                         )

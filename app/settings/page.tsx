@@ -1,611 +1,312 @@
 "use client"
 
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { useParams, useRouter } from 'next/navigation'
+import PinCard from '@/app/components/PinCard'
 import { useAuthStore } from '@/lib/authStore'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+
 import {
-    FiUser,
+    FiArrowRight,
     FiAtSign,
-    FiMail,
-    FiLock,
-    FiCamera,
-    FiSave,
-    FiCheckCircle,
-    FiAlertCircle,
-    FiShield,
-    FiEye,
-    FiEyeOff,
-    FiEdit3,
-    FiTrash2, FiAlertTriangle, FiX
+    FiImage,
+    FiGrid,
+    FiMessageCircle,
+    FiUserPlus,
+    FiCheck,
+    FiSettings,
 } from 'react-icons/fi'
 
-export default function SettingsPage() {
-    const { user, setUser } = useAuthStore()
+type UserProfile = {
+    id: string
+    name: string
+    username: string
+    avatar: string | null
+    bio: string | null
+    isFollowing: boolean
+    followersCount: number
+    followingCount: number
+}
+
+type ProfileResponse = {
+    user: UserProfile
+    pins: any[]
+}
+
+export default function UserProfilePage() {
+    const { id } = useParams<{ id: string }>()
     const router = useRouter()
+    const { user: currentUser } = useAuthStore()
+    const queryClient = useQueryClient()
 
-    const [name, setName] = useState(user?.name || '')
-    const [username, setUsername] = useState(user?.username || '')
-    const [email, setEmail] = useState(user?.email || '')
-    const [bio, setBio] = useState(user?.bio || '')
-    const [avatar, setAvatar] = useState(user?.avatar || '')
+    // ── Query: اطلاعات کاربر + پین‌ها ──
+    const {
+        data,
+        isLoading: loading,
+        isError,
+        error,
+    } = useQuery<ProfileResponse>({
+        queryKey: ['user', id],
+        queryFn: async () => {
+            const res = await fetch(`/api/users/${id}`)
+            if (!res.ok) throw new Error('کاربر یافت نشد')
+            return res.json()
+        },
+        enabled: !!id,
+        staleTime: 60 * 1000,
+    })
 
-    const [oldPassword, setOldPassword] = useState('')
-    const [newPassword, setNewPassword] = useState('')
+    const profileUser = data?.user
+    const pins = data?.pins ?? []
 
-    // ── state های صرفاً UI (بدون تأثیر روی لاجیک) ──
-    const [showOldPassword, setShowOldPassword] = useState(false)
-    const [showNewPassword, setShowNewPassword] = useState(false)
-    const [isAvatarUploading, setIsAvatarUploading] = useState(false)
+    // ── Mutation: فالو/آنفالو ──
+    const followMutation = useMutation({
+        mutationFn: async () => {
+            const res = await fetch(`/api/users/${id}/follow`, { method: 'POST' })
+            if (!res.ok) throw new Error('خطا در فالو')
+            return res.json()
+        },
+        onSuccess: (resData: { isFollowing: boolean; followersCount: number }) => {
+            queryClient.setQueryData<ProfileResponse>(['user', id], (old) => {
+                if (!old) return old
+                return {
+                    ...old,
+                    user: {
+                        ...old.user,
+                        isFollowing: resData.isFollowing,
+                        followersCount: resData.followersCount,
+                    },
+                }
+            })
+        },
+    })
 
-    const [loading, setLoading] = useState(false)
-    const [error, setError] = useState('')
-    const [success, setSuccess] = useState('')
-
-    const [showDeleteModal, setShowDeleteModal] = useState(false)
-    const [deleteConfirmText, setDeleteConfirmText] = useState('')
-    const [isDeleting, setIsDeleting] = useState(false)
-    const [deleteError, setDeleteError] = useState('')
-
-    // مقادیر اولیه برای تشخیص تغییر (صرفاً نمایشی)
-    const initialData = {
-        name: user?.name || '',
-        username: user?.username || '',
-        email: user?.email || '',
-        bio: user?.bio || '',
-        avatar: user?.avatar || '',
-    }
-    const hasChanges =
-        name !== initialData.name ||
-        username !== initialData.username ||
-        email !== initialData.email ||
-        bio !== initialData.bio ||
-        avatar !== initialData.avatar ||
-        oldPassword !== '' ||
-        newPassword !== ''
-
-    useEffect(() => {
-        if (!user) {
-            fetch('/api/auth/me')
-                .then(res => res.ok ? res.json() : null)
-                .then(data => {
-                    if (data?.user) {
-                        setUser(data.user)
-                        setName(data.user.name)
-                        setUsername(data.user.username)
-                        setEmail(data.user.email)
-                        setBio(data.user.bio || '')
-                        setAvatar(data.user.avatar || '')
-                    }
-                })
-                .catch(console.error)
-        }
-    }, [user, setUser])
-
-    const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0]
-        if (!file) return
-        const formData = new FormData()
-        formData.append('file', file)
-        setIsAvatarUploading(true)
-        try {
-            const res = await fetch('/api/upload', {
+    // ── Mutation: شروع گفتگو ──
+    const messageMutation = useMutation({
+        mutationFn: async () => {
+            const res = await fetch('/api/conversations', {
                 method: 'POST',
-                body: formData,
-            })
-            if (!res.ok) throw new Error('خطا در آپلود تصویر')
-            const data = await res.json()
-            setAvatar(data.imageUrl)
-        } catch (err) {
-            setError('خطا در آپلود تصویر')
-        } finally {
-            setIsAvatarUploading(false)
-        }
-    }
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault()
-        setError('')
-        setSuccess('')
-        setLoading(true)
-
-        try {
-            const res = await fetch('/api/user', {
-                method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    name,
-                    username,
-                    email,
-                    bio,
-                    avatar,
-                    oldPassword: oldPassword || undefined,
-                    newPassword: newPassword || undefined,
-                }),
+                body: JSON.stringify({ userId: profileUser!.id }),
             })
-
-            const data = await res.json()
-            if (!res.ok) {
-                throw new Error(data.error || 'خطا در ویرایش پروفایل')
+            if (!res.ok) throw new Error('خطا در شروع گفتگو')
+            return res.json()
+        },
+        onSuccess: (resData) => {
+            if (resData?.conversation?.id) {
+                router.push(`/messages/${resData.conversation.id}`)
             }
+        },
+        onError: (err) => {
+            console.error('خطا در شروع گفتگو:', err)
+        },
+    })
 
-            if (data.user) {
-                setUser(data.user)
-            }
-
-            setSuccess('پروفایل با موفقیت به‌روزرسانی شد !')
-            setOldPassword('')
-            setNewPassword('')
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'خطا')
-        } finally {
-            setLoading(false)
-        }
-    }
-
-    const handleDeleteAccount = async () => {
-        if (deleteConfirmText !== user?.username) {
-            setDeleteError('نام کاربری مطابقت ندارد')
+    const handleFollow = () => {
+        if (!currentUser) {
+            router.push('/login')
             return
         }
-
-        setDeleteError('')
-        setIsDeleting(true)
-
-        try {
-            const res = await fetch('/api/user', { method: 'DELETE' })
-            const data = await res.json()
-
-            if (!res.ok) {
-                throw new Error(data.error || 'خطا در حذف حساب')
-            }
-
-            // خالی کردن Zustand و ریدایرکت
-            setUser(null)
-            router.push('/')
-            router.refresh()
-        } catch (err) {
-            setDeleteError(err instanceof Error ? err.message : 'خطا')
-            setIsDeleting(false)
-        }
+        followMutation.mutate()
     }
 
-    if (!user) {
+    const handleMessage = () => {
+        if (!currentUser) {
+            router.push('/login')
+            return
+        }
+        if (!profileUser) return
+        messageMutation.mutate()
+    }
+
+    if (loading) {
         return (
-            <main dir="rtl" className="min-h-[70vh] flex justify-center items-center bg-gradient-to-br from-gray-50 via-white to-red-50/40">
-                <div className="flex flex-col items-center gap-3">
-                    <div className="w-10 h-10 border-[3px] border-gray-200 border-t-red-500 rounded-full animate-spin" />
-                    <p className="text-sm text-gray-400 font-medium">در حال بارگذاری تنظیمات...</p>
-                </div>
+            <main dir="rtl" className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 via-white to-orange-50">
+                <div className="w-10 h-10 border-4 border-gray-200 border-t-red-500 rounded-full animate-spin" />
             </main>
         )
     }
 
-    const inputBase =
-        'w-full border-2 text-sm md:text-lg border-gray-200 rounded-xl pr-10 pl-4 py-3 text-gray-900 placeholder-gray-400 bg-white/80 focus:outline-none focus:border-red-400 focus:ring-4 focus:ring-red-100/50 transition-all duration-200'
+    if (isError || !profileUser) {
+        return (
+            <main dir="rtl" className="min-h-screen flex flex-col items-center justify-center gap-5 px-4 bg-gradient-to-br from-red-50 via-white to-orange-50">
+                <div className="w-20 h-20 rounded-3xl bg-white shadow-lg ring-1 ring-black/5 flex items-center justify-center">
+                    <FiAtSign className="w-9 h-9 text-red-300" />
+                </div>
+                <p className="text-gray-800 font-bold text-xl">
+                    {(error as Error)?.message || 'کاربر یافت نشد'}
+                </p>
+                <Link href="/" className="text-red-600 font-semibold hover:underline">
+                    بازگشت به خانه
+                </Link>
+            </main>
+        )
+    }
+
+    const isOwnProfile = currentUser?.id === profileUser.id
 
     return (
-        <main dir="rtl" className="relative min-h-screen mb-10 md:mb-2 overflow-hidden bg-gradient-to-br from-gray-50 via-white to-red-50/40 px-4 py-8 md:py-12">
-            {/* عناصر تزئینی پس‌زمینه */}
-            <div className="absolute -top-24 -left-24 w-96 h-96 bg-red-100/50 rounded-full blur-3xl pointer-events-none" />
-            <div className="absolute -bottom-32 -right-32 w-[28rem] h-[28rem] bg-orange-100/40 rounded-full blur-3xl pointer-events-none" />
-            <div className="absolute top-1/3 right-1/4 w-64 h-64 bg-rose-100/30 rounded-full blur-3xl pointer-events-none" />
-
-            <div className="relative px-3 mx-auto">
-                {/* ── هدر صفحه: پیش‌نمایش هویت کاربر ── */}
-                <div className="flex items-center gap-4 md:gap-5 mb-8">
-                    <div className="relative shrink-0">
-                        <div className="w-14 h-14 md:w-20 md:h-20 rounded-3xl overflow-hidden bg-gradient-to-br from-red-500 to-rose-600 shadow-xl shadow-red-200/60 ring-2 ring-white flex items-center justify-center text-2xl font-black text-white">
-                            {avatar ? (
-                                <img src={avatar} alt="avatar" className="w-full h-full object-cover" />
-                            ) : (
-                                user.username?.charAt(0).toUpperCase()
-                            )}
-                        </div>
-                        
-                    </div>
-                    <div className="min-w-0">
-                        <h1 className="text-lg md:text-3xl font-extrabold bg-gradient-to-l from-red-600 to-rose-600 bg-clip-text text-transparent">
-                            تنظیمات پروفایل
-                        </h1>
-                        <p className="text-gray-500 text-[12px] md:text-sm mt-1 flex items-center gap-1.5">
-                            <span className="">
-                                @{user.username} — اطلاعات شخصی و رمز عبور خود را مدیریت کنید
-                            </span>
-                        </p>
-                    </div>
+        <main dir="rtl" className="min-h-screen bg-gradient-to-b from-gray-50 to-white pb-16">
+            {/* ═══════════ هیرو ═══════════ */}
+            <div className="relative">
+                <div className="h-28 sm:h-32 bg-gradient-to-l from-red-500/80 via-rose-500/70 to-orange-400/80 relative overflow-hidden">
+                    <div className="absolute -top-10 left-1/4 w-48 h-48 bg-white/15 rounded-full blur-2xl" />
+                    <div className="absolute -bottom-16 right-1/4 w-56 h-56 bg-white/10 rounded-full blur-3xl" />
                 </div>
 
-                {success && (
-                    <div className="mb-6 flex items-center gap-3 bg-white/90 backdrop-blur-md border border-green-200/80 text-green-700 px-5 py-4 rounded-2xl shadow-lg shadow-green-100/50 animate-[fadeInUp_0.3s_ease-out]">
-                        <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center shrink-0">
-                            <FiCheckCircle className="w-4 h-4 md:w-5 md:h-5" />
-                        </div>
-                        <span className="font-semibold text-xs md:text-md">{success}</span>
-                    </div>
-                )}
-                {error && (
-                    <div className="mb-6 flex items-center gap-3 bg-white/90 backdrop-blur-md border border-red-200/80 text-red-600 px-5 py-4 rounded-2xl shadow-lg shadow-red-100/50 animate-[fadeInUp_0.3s_ease-out]">
-                        <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center shrink-0">
-                            <FiAlertCircle className="w-5 h-5" />
-                        </div>
-                        <span className="font-semibold">{error}</span>
-                    </div>
-                )}
+                <button
+                    onClick={() => router.back()}
+                    className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-white/20 hover:bg-white/35 backdrop-blur-md ring-1 ring-white/30 flex items-center justify-center text-white transition-all cursor-pointer group"
+                    title="بازگشت"
+                    aria-label="بازگشت"
+                >
+                    <FiArrowRight className="w-4 h-4" />
+                </button>
 
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    {/* ═══ کارت اطلاعات شخصی ═══ */}
-                    <div className="relative bg-white/90 backdrop-blur-xl rounded-3xl shadow-xl shadow-gray-200/50 ring-1 ring-black/5 overflow-hidden transition-all duration-300 hover:shadow-2xl hover:shadow-red-100/40">
-                        <div className="h-1.5 bg-gradient-to-r from-red-500 via-rose-500 to-orange-400" />
-
-                        <div className="p-6 md:p-8">
-                            <div className="flex items-center gap-3 mb-8">
-                                <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-red-50 to-orange-50 ring-1 ring-red-100 flex items-center justify-center">
-                                    <FiUser className="w-5 h-5 text-red-600" />
-                                </div>
-                                <div>
-                                    <h2 className="md:text-lg text-md font-bold text-gray-900">اطلاعات شخصی</h2>
-                                    <p className="text-xs text-gray-400 mt-0.5">این اطلاعات برای دیگر کاربران نمایش داده می‌شود</p>
-                                </div>
-                            </div>
-
-                            {/* آواتار */}
-                            <div className="flex flex-col sm:flex-row items-center gap-6 mb-8 bg-gradient-to-l from-gray-50/80 to-transparent rounded-2xl p-5 ring-1 ring-gray-100">
-                                <div className="relative group shrink-0">
-                                    <div className="w-24 h-24 rounded-full overflow-hidden bg-gradient-to-br from-red-100 to-orange-100 ring-4 ring-white shadow-lg flex items-center justify-center text-3xl font-black text-red-600">
-                                        {isAvatarUploading ? (
-                                            <div className="w-8 h-8 border-[3px] border-red-100 border-t-red-500 rounded-full animate-spin" />
-                                        ) : avatar ? (
-                                            <img src={avatar} alt="avatar" className="w-full h-full object-cover" />
-                                        ) : (
-                                            user.username?.charAt(0).toUpperCase()
-                                        )}
-                                    </div>
-                                    <label className="absolute -bottom-1 -left-1 w-9 h-9 bg-gradient-to-br from-red-500 to-rose-600 rounded-full flex items-center justify-center text-white cursor-pointer shadow-lg shadow-red-200 ring-2 ring-white hover:scale-110 active:scale-95 transition-all duration-200 group-hover:scale-110">
-                                        <FiCamera className="w-4 h-4" />
-                                        <input
-                                            type="file"
-                                            accept="image/*"
-                                            onChange={handleAvatarUpload}
-                                            className="hidden"
-                                        />
-                                    </label>
-                                </div>
-                                <div className="text-center sm:text-right">
-                                    <p className="font-bold text-gray-900">تصویر پروفایل</p>
-                                    <p className="text-xs md:text-sm text-gray-500 mt-1 leading-relaxed">
-                                        برای تغییر آواتار روی دکمه دوربین کلیک کنید
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                {/* نام کامل */}
-                                <div>
-                                    <label className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 mb-2">
-                                        نام کامل
-                                    </label>
-                                    <div className="relative group">
-                                        <FiUser className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 transition-colors group-focus-within:text-red-500" />
-                                        <input
-                                            type="text"
-                                            value={name}
-                                            onChange={(e) => setName(e.target.value)}
-                                            className={inputBase}
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* نام کاربری */}
-                                <div>
-                                    <label className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 mb-2">
-                                        نام کاربری
-                                    </label>
-                                    <div className="relative group">
-                                        <FiAtSign className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 transition-colors group-focus-within:text-red-500" />
-                                        <input
-                                            type="text"
-                                            value={username}
-                                            onChange={(e) => setUsername(e.target.value)}
-                                            className={`${inputBase} pl-10`}
-                                            dir="ltr"
-                                        />
-                                        {/* نمایش متغیر @ سمت چپ */}
-                                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-300 font-bold select-none">@</span>
-                                    </div>
-                                </div>
-
-                                {/* ایمیل */}
-                                <div>
-                                    <label className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 mb-2">
-                                        ایمیل
-                                    </label>
-                                    <div className="relative group">
-                                        <FiMail className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 transition-colors group-focus-within:text-red-500" />
-                                        <input
-                                            type="email"
-                                            value={email}
-                                            onChange={(e) => setEmail(e.target.value)}
-                                            className={inputBase}
-                                            dir="ltr"
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* بیوگرافی */}
-                                <div>
-                                    <label className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 mb-2">
-                                        بیوگرافی
-                                    </label>
-                                    <div className="relative group">
-                                        <FiEdit3 className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 transition-colors group-focus-within:text-red-500 pointer-events-none" />
-                                        <input
-                                            type="text"
-                                            value={bio}
-                                            onChange={(e) => setBio(e.target.value)}
-                                            className={inputBase}
-                                            placeholder="چند کلمه درباره شما"
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* ═══ کارت تغییر رمز عبور ═══ */}
-                    <div className="relative bg-white/90 backdrop-blur-xl rounded-3xl shadow-xl shadow-gray-200/50 ring-1 ring-black/5 overflow-hidden transition-all duration-300 hover:shadow-2xl hover:shadow-indigo-100/40">
-                        <div className="h-1.5 bg-gradient-to-r from-red-500 via-rose-500 to-orange-400" />
-
-                        <div className="p-6 md:p-8">
-                            <div className="flex items-center justify-between gap-3 mb-2">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 ring-1 ring-blue-100 flex items-center justify-center">
-                                        <FiShield className="w-5 h-5 text-blue-600" />
-                                    </div>
-                                    <div>
-                                        <h2 className="text-sm md:text-lg font-bold text-gray-900">تغییر رمز عبور</h2>
-                                        <p className="text-[10px] md:text-xs text-gray-400 mt-0.5">اختیاری — برای تغییر رمز، هر دو فیلد را پر کنید</p>
-                                    </div>
-                                </div>
-                                {/* بج وضعیت */}
-                                <span
-                                    className={`shrink-0 text-[10px] md:text-xs font-semibold px-3 py-1.5 rounded-full transition-colors ${oldPassword && newPassword
-                                        ? 'bg-blue-50 text-blue-600 ring-1 ring-blue-100'
-                                        : 'bg-gray-50 text-gray-400 ring-1 ring-gray-100'
-                                        }`}
-                                >
-                                    {oldPassword && newPassword ? 'آماده تغییر' : 'بدون تغییر'}
-                                </span>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-6">
-                                {/* رمز فعلی */}
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">رمز فعلی</label>
-                                    <div className="relative group">
-                                        <FiLock className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 transition-colors group-focus-within:text-blue-500" />
-                                        <input
-                                            type={showOldPassword ? 'text' : 'password'}
-                                            value={oldPassword}
-                                            onChange={(e) => setOldPassword(e.target.value)}
-                                            className={`${inputBase} !focus:border-blue-400 !focus:ring-blue-100/50 pl-11`}
-                                            onFocus={(e) => {
-                                                e.currentTarget.style.borderColor = '#60a5fa'
-                                                e.currentTarget.style.boxShadow = '0 0 0 4px rgba(191, 219, 254, 0.5)'
-                                            }}
-                                            onBlur={(e) => {
-                                                e.currentTarget.style.borderColor = ''
-                                                e.currentTarget.style.boxShadow = ''
-                                            }}
-                                            dir="ltr"
-                                        />
-                                        <button
-                                            type="button"
-                                            tabIndex={-1}
-                                            onClick={() => setShowOldPassword(prev => !prev)}
-                                            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
-                                        >
-                                            {showOldPassword ? <FiEyeOff className="w-4.5 h-4.5 w-5 h-5" /> : <FiEye className="w-5 h-5" />}
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* رمز جدید */}
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">رمز جدید</label>
-                                    <div className="relative group">
-                                        <FiLock className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 transition-colors group-focus-within:text-blue-500" />
-                                        <input
-                                            type={showNewPassword ? 'text' : 'password'}
-                                            value={newPassword}
-                                            onChange={(e) => setNewPassword(e.target.value)}
-                                            className={`${inputBase} pl-11`}
-                                            onFocus={(e) => {
-                                                e.currentTarget.style.borderColor = '#60a5fa'
-                                                e.currentTarget.style.boxShadow = '0 0 0 4px rgba(191, 219, 254, 0.5)'
-                                            }}
-                                            onBlur={(e) => {
-                                                e.currentTarget.style.borderColor = ''
-                                                e.currentTarget.style.boxShadow = ''
-                                            }}
-                                            dir="ltr"
-                                        />
-                                        <button
-                                            type="button"
-                                            tabIndex={-1}
-                                            onClick={() => setShowNewPassword(prev => !prev)}
-                                            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
-                                        >
-                                            {showNewPassword ? <FiEyeOff className="w-5 h-5" /> : <FiEye className="w-5 h-5" />}
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* ═─ نوار ذخیره ═══ */}
-                    <div className="sticky bottom-4 z-30">
-                        <div className="bg-white/80 backdrop-blur-xl rounded-2xl ring-1 ring-black/5 shadow-2xl shadow-gray-300/40 p-3 flex items-center gap-3">
-                            <button
-                                type="submit"
-                                disabled={loading || (!hasChanges && !oldPassword && !newPassword)}
-                                className="flex-1 bg-gradient-to-r from-red-600 to-rose-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-red-200/70 hover:shadow-xl hover:shadow-red-300/60 hover:brightness-105 active:scale-[0.99] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:hover:brightness-100 flex items-center justify-center gap-2"
-                            >
-                                {loading ? (
-                                    <span className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                <div className="max-w-2xl mx-auto px-4">
+                    <div className="relative -mt-14 sm:-mt-16 w-fit mx-auto group">
+                        <div className="p-[3px] rounded-full bg-gradient-to-br from-red-500 via-rose-500 to-orange-400 shadow-xl shadow-red-200/50 transition-transform duration-300 group-hover:scale-[1.03]">
+                            <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden bg-white ring-4 ring-white flex items-center justify-center text-3xl sm:text-4xl font-black text-white bg-gradient-to-br from-red-500 to-orange-500">
+                                {profileUser.avatar ? (
+                                    <img
+                                        src={profileUser.avatar}
+                                        alt={profileUser.name}
+                                        className="w-full h-full object-cover"
+                                    />
                                 ) : (
-                                    <FiSave className="w-5 h-5" />
+                                    <span className="leading-none">
+                                        {profileUser.username?.charAt(0).toUpperCase() || '؟'}
+                                    </span>
                                 )}
-                                {loading ? 'در حال ذخیره...' : 'ذخیره تغییرات'}
-                            </button>
-
-                            {/* نشانگر تغییرات ذخیره‌نشده */}
-                            {hasChanges && !loading && (
-                                <span className="shrink-0 hidden sm:flex items-center gap-1.5 text-xs font-semibold text-amber-600 bg-amber-50 ring-1 ring-amber-100 px-3 py-2 rounded-xl animate-[fadeInUp_0.3s_ease-out]">
-                                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                                    تغییرات ذخیره‌نشده
-                                </span>
-                            )}
+                            </div>
                         </div>
                     </div>
-                </form>
+
+                    <div className="text-center mt-4">
+                        <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
+                            {profileUser.name}
+                        </h1>
+                        <p className="flex items-center justify-center gap-1 text-sm text-gray-400 font-medium mt-1.5">
+                            <FiAtSign className="w-3.5 h-3.5" />
+                            {profileUser.username}
+                        </p>
+
+                        {profileUser.bio && (
+                            <p className="text-[15px] text-gray-600 leading-relaxed mt-3 max-w-md mx-auto">
+                                {profileUser.bio}
+                            </p>
+                        )}
+                    </div>
+
+                    <div className="mt-6 flex items-center justify-center gap-5 sm:gap-7">
+                        <div className="group/stat flex flex-col items-center gap-1 cursor-default">
+                            <div className="flex items-center gap-1.5">
+                                <FiGrid className="w-3.5 h-3.5 text-red-400/50 transition-all duration-300 group-hover/stat:text-red-500 group-hover/stat:scale-110" />
+                                <span className="text-lg sm:text-xl font-black tabular-nums leading-none bg-gradient-to-br from-red-500 to-orange-400 bg-clip-text text-transparent">
+                                    {pins.length}
+                                </span>
+                            </div>
+                            <span className="text-[11px] text-gray-400 font-semibold">پین</span>
+                            <span className="h-0.5 w-0 rounded-full bg-gradient-to-l from-red-500 to-orange-400 opacity-0 group-hover/stat:opacity-100 group-hover/stat:w-full transition-all duration-300" />
+                        </div>
+
+                        <span className="w-1 h-1 rounded-full bg-gray-200" />
+
+                        <div className="group/stat flex flex-col items-center gap-1 cursor-default">
+                            <span className="text-lg sm:text-xl font-black tabular-nums leading-none bg-gradient-to-br from-fuchsia-500 to-purple-400 bg-clip-text text-transparent">
+                                {profileUser.followersCount}
+                            </span>
+                            <span className="text-[11px] text-gray-400 font-semibold">دنبال‌کننده</span>
+                            <span className="h-0.5 w-0 rounded-full bg-gradient-to-l from-fuchsia-500 to-purple-400 opacity-0 group-hover/stat:opacity-100 group-hover/stat:w-full transition-all duration-300" />
+                        </div>
+
+                        <span className="w-1 h-1 rounded-full bg-gray-200" />
+
+                        <div className="group/stat flex flex-col items-center gap-1 cursor-default">
+                            <span className="text-lg sm:text-xl font-black tabular-nums leading-none bg-gradient-to-br from-blue-500 to-cyan-400 bg-clip-text text-transparent">
+                                {profileUser.followingCount}
+                            </span>
+                            <span className="text-[11px] text-gray-400 font-semibold">دنبال‌شونده</span>
+                            <span className="h-0.5 w-0 rounded-full bg-gradient-to-l from-blue-500 to-cyan-400 opacity-0 group-hover/stat:opacity-100 group-hover/stat:w-full transition-all duration-300" />
+                        </div>
+                    </div>
+
+                    {/* دکمه‌های اکشن */}
+                    <div className="mt-6 flex justify-center">
+                        {isOwnProfile ? (
+                            <Link
+                                href="/settings"
+                                className="inline-flex items-center gap-2 text-sm font-bold text-gray-700 bg-white ring-1 ring-gray-200 hover:ring-gray-300 hover:bg-gray-50 px-6 py-2.5 rounded-full transition-all no-underline shadow-sm"
+                            >
+                                <FiSettings className="w-4 h-4 text-gray-400" />
+                                ویرایش پروفایل
+                            </Link>
+                        ) : (
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={handleFollow}
+                                    disabled={followMutation.isPending}
+                                    className={`inline-flex items-center gap-2 text-sm font-bold px-7 py-2.5 rounded-full transition-all cursor-pointer active:scale-95 ${profileUser.isFollowing
+                                            ? 'text-gray-700 bg-white ring-1 ring-gray-300 hover:ring-gray-400 shadow-sm'
+                                            : 'text-white bg-gray-900 hover:bg-black shadow-lg shadow-gray-300/60 hover:-translate-y-0.5'
+                                        } ${followMutation.isPending ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                >
+                                    {followMutation.isPending ? (
+                                        <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin opacity-70" />
+                                    ) : profileUser.isFollowing ? (
+                                        <FiCheck className="w-4 h-4" />
+                                    ) : (
+                                        <FiUserPlus className="w-4 h-4" />
+                                    )}
+                                    {profileUser.isFollowing ? 'دنبال می‌کنید' : 'دنبال کردن'}
+                                </button>
+
+                                <button
+                                    onClick={handleMessage}
+                                    disabled={messageMutation.isPending}
+                                    className={`inline-flex items-center gap-2 text-sm font-bold px-6 py-2.5 rounded-full text-gray-700 bg-white ring-1 ring-gray-300 hover:ring-gray-400 hover:bg-gray-50 transition-all cursor-pointer active:scale-95 shadow-sm ${messageMutation.isPending ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                >
+                                    {messageMutation.isPending ? (
+                                        <span className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
+                                    ) : (
+                                        <FiMessageCircle className="w-4 h-4 text-gray-400" />
+                                    )}
+                                    پیام
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
             </div>
 
-            {/* استایل انیمیشن fadeInUp */}
-            <style>{`
-                @keyframes fadeInUp {
-                    from { opacity: 0; transform: translateY(10px); }
-                    to { opacity: 1; transform: translateY(0); }
-                }
-                @media (prefers-reduced-motion: reduce) {
-                    * { animation: none !important; }
-                }
-            `}</style>
-            <div className="mt-8 relative bg-white/90 backdrop-blur-md rounded-3xl shadow-xl shadow-red-100/30 ring-1 ring-red-200/50 overflow-hidden">
-    {/* نوار قرمز بالای کارت */}
-    <div className="h-1.5 bg-gradient-to-r from-red-600 via-rose-500 to-red-600" />
-
-    <div className="p-6 md:p-8">
-        <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center">
-                <FiAlertTriangle className="w-5 h-5 text-red-600" />
-            </div>
-            <div>
-                <h2 className="text-lg font-bold text-red-600">منطقه‌ی خطر</h2>
-                <p className="text-xs text-gray-400 mt-0.5">عملیات غیرقابل بازگشت</p>
-            </div>
-        </div>
-
-        <div className="bg-red-50/60 border border-red-100 rounded-2xl p-4 mb-5">
-            <p className="text-sm text-red-700 font-semibold mb-1">حذف حساب کاربری</p>
-            <p className="text-xs text-red-600/80 leading-relaxed">
-                با حذف حساب، تمام اطلاعات شما شامل پین‌ها، بردها، کامنت‌ها، لایک‌ها و گفتگوها
-                به صورت دائمی پاک می‌شوند. این عمل قابل بازگشت نیست.
-            </p>
-        </div>
-
-        <button
-            onClick={() => setShowDeleteModal(true)}
-            className="w-full bg-white border-2 border-red-300 hover:border-red-500 hover:bg-red-50 text-red-600 font-bold py-3.5 rounded-2xl transition-all duration-200 cursor-pointer flex items-center justify-center gap-2"
-        >
-            <FiTrash2 className="w-4 h-4" />
-            حذف دائمی حساب کاربری
-        </button>
-    </div>
-</div>
-
-{/* ═══════════════ 🗑️ مودال تأیید حذف حساب ═══════════════ */}
-{showDeleteModal && (
-    <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
-        <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden animate-[fadeInUp_0.3s_ease-out]">
-            {/* نوار قرمز بالا */}
-            <div className="h-1.5 bg-gradient-to-r from-red-600 via-rose-500 to-red-600" />
-
-            {/* دکمه بستن */}
-            <button
-                onClick={() => {
-                    setShowDeleteModal(false)
-                    setDeleteConfirmText('')
-                    setDeleteError('')
-                }}
-                className="absolute top-5 right-4 w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors cursor-pointer"
-                aria-label="بستن"
-            >
-                <FiX className="w-4 h-4" />
-            </button>
-
-            <div className="p-6">
-                {/* آیکون خطر */}
-                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-red-50 flex items-center justify-center rotate-3">
-                    <FiAlertTriangle className="w-8 h-8 text-red-600" />
+            {/* ═══════════ پین‌های کاربر ═══════════ */}
+            <div className="max-w-[1400px] mx-auto px-4 sm:px-8 mt-12">
+                <div className="flex items-center gap-3 mb-6">
+                    <h2 className="flex items-center gap-2 font-bold text-gray-900 text-sm shrink-0">
+                        <span className="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center">
+                            <FiImage className="w-3.5 h-3.5 text-red-500" />
+                        </span>
+                        پین‌های {profileUser.name}
+                    </h2>
+                    <div className="flex-1 h-px bg-gray-100" />
                 </div>
 
-                <h3 className="text-lg font-extrabold text-gray-900 text-center mb-2">
-                    حذف حساب کاربری؟
-                </h3>
-                <p className="text-sm text-gray-500 text-center leading-relaxed mb-5">
-                    این عمل <span className="font-bold text-red-600">غیرقابل بازگشت</span> است. تمام داده‌های شما پاک می‌شوند.
-                </p>
-
-                {/* راهنمای تایپ یوزرنیم */}
-                <div className="bg-gray-50 rounded-2xl p-4 mb-4">
-                    <p className="text-xs text-gray-600 mb-2 text-center">
-                        برای تأیید، نام کاربری خود را تایپ کنید:
-                    </p>
-                    <p className="text-center font-mono text-sm font-bold text-gray-900 mb-3 bg-white px-3 py-1.5 rounded-lg ring-1 ring-gray-200 select-all" dir="ltr">
-                        {user?.username}
-                    </p>
-                    <input
-                        type="text"
-                        value={deleteConfirmText}
-                        onChange={(e) => {
-                            setDeleteConfirmText(e.target.value)
-                            setDeleteError('')
-                        }}
-                        placeholder="نام کاربری را تایپ کنید..."
-                        className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-center text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-red-400 focus:ring-4 focus:ring-red-100/50 transition-all"
-                        dir="ltr"
-                    />
-                </div>
-
-                {deleteError && (
-                    <div className="mb-4 flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 px-4 py-2.5 rounded-xl text-xs">
-                        <FiAlertTriangle className="w-4 h-4 shrink-0" />
-                        {deleteError}
+                {pins.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-16 text-center">
+                        <div className="w-16 h-16 rounded-3xl bg-gradient-to-br from-gray-50 to-gray-100 ring-1 ring-gray-100 flex items-center justify-center mb-4 rotate-3">
+                            <FiImage className="w-7 h-7 text-gray-300" />
+                        </div>
+                        <p className="text-gray-600 text-sm font-bold">این کاربر هنوز پینی نساخته است</p>
+                        <p className="text-gray-400 text-xs mt-1">به‌زودی شاید ایده‌های جدیدی اضافه کنه ✨</p>
+                    </div>
+                ) : (
+                    <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4 space-y-4">
+                        {pins.map((pin: any) => (
+                            <PinCard key={pin.id} pin={pin} />
+                        ))}
                     </div>
                 )}
-
-                <div className="flex gap-3">
-                    <button
-                        onClick={() => {
-                            setShowDeleteModal(false)
-                            setDeleteConfirmText('')
-                            setDeleteError('')
-                        }}
-                        disabled={isDeleting}
-                        className="flex-1 py-3 rounded-xl font-bold text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors cursor-pointer disabled:opacity-50"
-                    >
-                        انصراف
-                    </button>
-                    <button
-                        onClick={handleDeleteAccount}
-                        disabled={deleteConfirmText !== user?.username || isDeleting}
-                        className="flex-1 py-3 rounded-xl font-bold text-sm bg-red-600 text-white shadow-lg shadow-red-200 hover:bg-red-700 hover:shadow-xl transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    >
-                        {isDeleting ? (
-                            <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                        ) : (
-                            <>
-                                <FiTrash2 className="w-4 h-4" />
-                                حذف نهایی
-                            </>
-                        )}
-                    </button>
-                </div>
             </div>
-        </div>
-    </div>
-)}
         </main>
     )
 }

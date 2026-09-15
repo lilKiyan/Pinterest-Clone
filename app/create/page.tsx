@@ -3,16 +3,73 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { FiArrowRight, FiUpload, FiImage, FiType, FiAlignLeft, FiAlertCircle, FiX, FiFile, FiCheckCircle } from 'react-icons/fi'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { FiUpload, FiImage, FiType, FiAlignLeft, FiAlertCircle, FiX, FiFile, FiCheckCircle } from 'react-icons/fi'
+
+type CreatePinInput = {
+    title: string
+    description: string
+    file: File
+}
 
 export default function CreatePage() {
     const router = useRouter()
+    const queryClient = useQueryClient()
+
+    // ── State های UI (فقط فرم) ──
     const [title, setTitle] = useState('')
     const [description, setDescription] = useState('')
     const [selectedFile, setSelectedFile] = useState<File | null>(null)
     const [previewUrl, setPreviewUrl] = useState('')
-    const [loading, setLoading] = useState(false)
-    const [error, setError] = useState('')
+
+    const createPinMutation = useMutation({
+        mutationFn: async ({ title, description, file }: CreatePinInput) => {
+            // ۱. آپلود تصویر
+            const formData = new FormData()
+            formData.append('file', file)
+
+            const uploadRes = await fetch('/api/upload', {
+                method: 'POST',
+                body: formData,
+            })
+
+            if (!uploadRes.ok) {
+                const data = await uploadRes.json()
+                throw new Error(data.error || 'خطا در آپلود تصویر')
+            }
+
+            const { imageUrl, width, height } = await uploadRes.json()
+
+            // ۲. ساخت پین
+            const pinRes = await fetch('/api/pins', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title: title.trim(),
+                    description: description.trim(),
+                    imageUrl,
+                    imageWidth: width,
+                    imageHeight: height,
+                }),
+            })
+
+            if (!pinRes.ok) {
+                const data = await pinRes.json()
+                throw new Error(data.error || 'خطا در ساخت پین')
+            }
+
+            return pinRes.json()
+        },
+        onSuccess: () => {
+            // ✅ کش صفحات مرتبط رو invalidate کن
+            queryClient.invalidateQueries({ queryKey: ['pins'] })
+            queryClient.invalidateQueries({ queryKey: ['my-pins'] })
+
+            // ✅ ناوبری SPA (بهتر از window.location.href)
+            router.push('/')
+            router.refresh()
+        },
+    })
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
@@ -27,55 +84,15 @@ export default function CreatePage() {
         reader.readAsDataURL(file)
     }
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()
-        setError('')
+        if (!title.trim() || !selectedFile) return
 
-        if (!title.trim() || !selectedFile) {
-            setError('عنوان و انتخاب تصویر الزامی است')
-            return
-        }
-
-        setLoading(true)
-        try {
-            const formData = new FormData()
-            formData.append('file', selectedFile)
-
-            const uploadRes = await fetch('/api/upload', {
-                method: 'POST',
-                body: formData,
-            })
-
-            if (!uploadRes.ok) {
-                const uploadData = await uploadRes.json()
-                throw new Error(uploadData.error || 'خطا در آپلود تصویر')
-            }
-
-            const { imageUrl, width, height } = await uploadRes.json()
-
-            const pinRes = await fetch('/api/pins', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    title: title.trim(),
-                    description: description.trim(),
-                    imageUrl,
-                    imageWidth: width,
-                    imageHeight: height,
-                })
-            })
-
-            if (!pinRes.ok) {
-                const pinData = await pinRes.json()
-                throw new Error(pinData.error || 'خطا در ساخت پین')
-            }
-
-            window.location.href = '/'
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'خطا')
-        } finally {
-            setLoading(false)
-        }
+        createPinMutation.mutate({
+            title: title.trim(),
+            description: description.trim(),
+            file: selectedFile,
+        })
     }
 
     // نمایش حجم فایل به صورت خوانا (صرفاً نمایشی)
@@ -86,17 +103,18 @@ export default function CreatePage() {
     }
 
     const isFormValid = title.trim() && selectedFile
+    const loading = createPinMutation.isPending
+    const error = createPinMutation.error
 
     return (
         <main
             dir="rtl"
             className="relative min-h-screen overflow-hidden bg-gradient-to-br from-gray-50 via-white to-red-50/40 px-4 py-8"
         >
-            {/* عناصر تزئینی پس‌زمینه */}
             <div className="absolute -top-24 -left-24 w-96 h-96 bg-red-100/50 rounded-full blur-3xl pointer-events-none" />
             <div className="absolute -bottom-32 -right-32 w-[28rem] h-[28rem] bg-orange-100/40 rounded-full blur-3xl pointer-events-none" />
 
-            {/* ── هدر ── */}
+            {/* هدر */}
             <div className="flex items-center gap-4 mb-12">
                 <div className="md:w-14 md:h-14 w-12 h-12 rounded-2xl bg-gradient-to-br from-red-500 to-rose-600 shadow-lg shadow-red-200/60 flex items-center justify-center shrink-0">
                     <FiUpload className="md:w-6 md:h-6 w-5 h-5 text-white" />
@@ -110,16 +128,18 @@ export default function CreatePage() {
                     </p>
                 </div>
             </div>
-            <div className="relative max-w-4xl mx-auto">
 
+            <div className="relative max-w-4xl mx-auto">
                 <form onSubmit={handleSubmit} className="space-y-5">
                     {/* ── خطا ── */}
                     {error && (
                         <div className="flex items-center gap-3 bg-white/90 backdrop-blur-md border border-red-200/80 text-red-600 px-5 py-4 rounded-2xl shadow-lg shadow-red-100/50 animate-[fadeInUp_0.3s_ease-out]">
                             <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center shrink-0">
-                                <FiAlertCircle className="w-4.5 h-4.5 w-5 h-5" />
+                                <FiAlertCircle className="w-5 h-5" />
                             </div>
-                            <span className="font-semibold text-sm">{error}</span>
+                            <span className="font-semibold text-sm">
+                                {(error as Error).message}
+                            </span>
                         </div>
                     )}
 
@@ -129,8 +149,7 @@ export default function CreatePage() {
 
                         <div className="p-5 md:p-8">
                             <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.15fr] gap-8">
-
-                                {/* ═══ بخش آپلود تصویر ═══ */}
+                                {/* ═══ آپلود تصویر ═══ */}
                                 <div>
                                     <div className="flex items-center justify-between mb-2.5">
                                         <label className="flex items-center gap-1.5 text-sm font-semibold text-gray-700">
@@ -185,7 +204,6 @@ export default function CreatePage() {
                                         />
                                     </label>
 
-                                    {/* چیپ اطلاعات فایل */}
                                     {selectedFile && (
                                         <div className="mt-3 flex items-center gap-2.5 bg-gray-50 ring-1 ring-gray-100 rounded-xl px-3 py-2.5 animate-[fadeInUp_0.25s_ease-out]">
                                             <div className="w-8 h-8 rounded-lg bg-white ring-1 ring-gray-200 flex items-center justify-center shrink-0">
@@ -215,7 +233,7 @@ export default function CreatePage() {
                                     )}
                                 </div>
 
-                                {/* ═══ بخش اطلاعات پین ═══ */}
+                                {/* ═══ اطلاعات پین ═══ */}
                                 <div className="flex flex-col gap-6">
                                     <div>
                                         <label className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 mb-2.5">
@@ -260,7 +278,7 @@ export default function CreatePage() {
                         </div>
                     </div>
 
-                    {/* ── نوار دکمه‌ها (استیکی) ── */}
+                    {/* ── نوار دکمه‌ها ── */}
                     <div className="sticky bottom-4 z-30 mb-15 md:mb-0">
                         <div className="bg-white/80 backdrop-blur-xl rounded-2xl ring-1 ring-black/5 shadow-2xl shadow-gray-300/40 p-3 flex items-center gap-3">
                             <button

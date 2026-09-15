@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { useAuthStore } from '@/lib/authStore'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { IoSend } from 'react-icons/io5'
-import { FiArrowRight, FiMessageCircle, FiChevronDown, FiSend, FiAlertCircle } from 'react-icons/fi'
+import { FiArrowRight, FiMessageCircle, FiChevronDown, FiAlertCircle } from 'react-icons/fi'
 import { CONTENT_LIMITS } from '@/lib/validations'
 
 type Message = {
@@ -216,20 +216,39 @@ export default function ChatPage() {
                         <FiArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-0.5" />
                     </button>
 
-                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center text-white font-bold text-sm ring-2 ring-white shadow-md overflow-hidden shrink-0">
-                            {otherUser?.avatar ? (
-                                <img src={otherUser.avatar} alt={otherUser.name} className="w-full h-full object-cover" />
-                            ) : (
-                                otherUser?.username?.charAt(0).toUpperCase() || '؟'
-                            )}
+                    {otherUser ? (
+                        <Link
+                            href={`/user/${otherUser.id}`}
+                            className="flex items-center gap-2.5 min-w-0 flex-1 no-underline group/profile"
+                        >
+                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center text-white font-bold text-sm ring-2 ring-white shadow-md overflow-hidden shrink-0 transition-all duration-200 group-hover/profile:scale-105 group-hover/profile:ring-red-200">
+                                {otherUser.avatar ? (
+                                    <img src={otherUser.avatar} alt={otherUser.name} className="w-full h-full object-cover" />
+                                ) : (
+                                    otherUser?.username?.charAt(0).toUpperCase() || '؟'
+                                )}
+                            </div>
+                            <div className="min-w-0">
+                                <h1 className="text-base font-extrabold text-gray-900 leading-tight truncate transition-colors duration-200 group-hover/profile:text-red-600">
+                                    {otherUser.name}
+                                </h1>
+                                <p className="text-[11px] text-gray-400 truncate" dir="ltr">
+                                    @{otherUser.username}
+                                </p>
+                            </div>
+                        </Link>
+                    ) : (
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                            <div className="w-9 h-9 rounded-full bg-gray-200 ring-2 ring-white shadow-md overflow-hidden shrink-0 flex items-center justify-center text-gray-400 text-sm font-bold">
+                                ؟
+                            </div>
+                            <div className="min-w-0">
+                                <h1 className="text-base font-extrabold text-gray-900 leading-tight truncate">
+                                    گفتگو
+                                </h1>
+                            </div>
                         </div>
-                        <div className="min-w-0">
-                            <h1 className="text-base font-extrabold text-gray-900 leading-tight truncate">
-                                {otherUser?.name || 'گفتگو'}
-                            </h1>
-                        </div>
-                    </div>
+                    )}
 
                     {messages.length > 0 && (
                         <span className="shrink-0 text-xs font-extrabold bg-red-50 text-red-600 ring-1 ring-red-100 px-2.5 py-1 rounded-full tabular-nums">
@@ -288,15 +307,15 @@ export default function ChatPage() {
                                     )}
                                     <div
                                         className={`flex items-end gap-2 ${isMine ? 'justify-start' : 'justify-end'} ${isMine
-                                                ? 'animate-[messagePopMine_0.35s_cubic-bezier(0.34,1.56,0.64,1)]'
-                                                : 'animate-[messagePopTheirs_0.35s_cubic-bezier(0.34,1.56,0.64,1)]'
+                                            ? 'animate-[messagePopMine_0.35s_cubic-bezier(0.34,1.56,0.64,1)]'
+                                            : 'animate-[messagePopTheirs_0.35s_cubic-bezier(0.34,1.56,0.64,1)]'
                                             }`}
                                         style={{ animationDelay: `${Math.min(index * 25, 250)}ms` }}
                                     >
                                         <div
                                             className={`relative max-w-[82%] sm:max-w-[70%] px-4 py-2.5 text-sm leading-relaxed shadow-md transition-all duration-200 ${isMine
-                                                    ? 'bg-gradient-to-br from-red-500 to-rose-600 text-white shadow-red-200/60 rounded-2xl rounded-br-md'
-                                                    : 'bg-white text-gray-800 ring-1 ring-gray-200/90 shadow-gray-200/50 rounded-2xl rounded-bl-md'
+                                                ? 'bg-gradient-to-br from-red-500 to-rose-600 text-white shadow-red-200/60 rounded-2xl rounded-br-md'
+                                                : 'bg-white text-gray-800 ring-1 ring-gray-200/90 shadow-gray-200/50 rounded-2xl rounded-bl-md'
                                                 }`}
                                         >
                                             <p className="break-words whitespace-pre-wrap">{message.content}</p>
@@ -333,8 +352,8 @@ export default function ChatPage() {
                     onClick={scrollToBottom}
                     aria-label="پایین"
                     className={`absolute bottom-24 left-1/2 -translate-x-1/2 z-40 w-11 h-11 rounded-full flex items-center justify-center transition-all duration-300 cursor-pointer ${unreadCount > 0
-                            ? 'bg-gradient-to-br from-red-500 to-rose-600 text-white shadow-lg shadow-red-300/50 hover:shadow-xl hover:shadow-red-400/60 hover:scale-110 active:scale-95'
-                            : 'bg-white text-gray-600 shadow-lg ring-1 ring-black/5 hover:bg-gray-50 hover:scale-110 active:scale-95'
+                        ? 'bg-gradient-to-br from-red-500 to-rose-600 text-white shadow-lg shadow-red-300/50 hover:shadow-xl hover:shadow-red-400/60 hover:scale-110 active:scale-95'
+                        : 'bg-white text-gray-600 shadow-lg ring-1 ring-black/5 hover:bg-gray-50 hover:scale-110 active:scale-95'
                         } animate-[bounceSmooth_1.2s_ease-in-out_infinite]`}
                 >
                     {unreadCount > 0 && (
@@ -360,15 +379,15 @@ export default function ChatPage() {
                             type="submit"
                             disabled={!newMessage.trim() || sendMessage.isPending || isOverLimit}
                             aria-label="ارسال پیام"
-                            className={`shrink-0 w-11 h-11 rounded-full flex items-center justify-center transition-all duration-300 cursor-pointer ${newMessage.trim() && !sendMessage.isPending && !isOverLimit
-                                    ? 'bg-gradient-to-br from-red-500 to-rose-600 text-white shadow-lg shadow-red-300/60 hover:shadow-xl hover:-translate-y-0.5 active:scale-90'
-                                    : 'bg-gray-200/80 text-gray-400 cursor-not-allowed scale-95'
+                            className={`shrink-0 w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-300 cursor-pointer ${newMessage.trim() && !sendMessage.isPending && !isOverLimit
+                                ? 'bg-gradient-to-br from-red-500 to-rose-600 text-white shadow-lg shadow-red-300/60 hover:shadow-xl hover:-translate-y-0.5 active:scale-90'
+                                : 'bg-gray-200/80 text-gray-400 cursor-not-allowed scale-95'
                                 }`}
                         >
                             {sendMessage.isPending ? (
                                 <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
                             ) : (
-                                <FiSend className="w-5 h-5 -scale-x-100" />
+                                <IoSend className="w-5 h-5" />
                             )}
                         </button>
 
@@ -379,9 +398,9 @@ export default function ChatPage() {
                                 value={newMessage}
                                 onChange={(e) => setNewMessage(e.target.value)}
                                 placeholder="پیام خود را بنویسید..."
-                                className={`w-full bg-gray-100 ring-1 rounded-full px-5 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 transition-all duration-200 ${isOverLimit
-                                        ? 'ring-red-300 focus:ring-red-400'
-                                        : 'ring-gray-200/70 focus:ring-red-300/60 pl-18'
+                                className={`w-full bg-gray-100 ring-1 rounded-xl px-5 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 transition-all duration-200 ${isOverLimit
+                                    ? 'ring-red-300 focus:ring-red-400'
+                                    : 'ring-gray-200/70 focus:ring-red-300/60 pl-18'
                                     }`}
                             />
 
@@ -389,10 +408,10 @@ export default function ChatPage() {
                             {newMessage.length > 0 && (
                                 <span
                                     className={`absolute left-2.5 top-1/2 -translate-y-1/2 inline-flex items-center gap-0.5 h-6 px-2 rounded-full text-[10px] font-bold tabular-nums transition-all duration-200 ${isOverLimit
-                                            ? 'bg-red-100 text-red-600 ring-1 ring-red-300 animate-pulse'
-                                            : isNearLimit
-                                                ? 'bg-orange-100 text-orange-600 ring-1 ring-orange-200'
-                                                : 'bg-gray-200/80 text-gray-500'
+                                        ? 'bg-red-100 text-red-600 ring-1 ring-red-300 animate-pulse'
+                                        : isNearLimit
+                                            ? 'bg-orange-100 text-orange-600 ring-1 ring-orange-200'
+                                            : 'bg-gray-200/80 text-gray-500'
                                         }`}
                                 >
                                     <span>{messageLength}</span>
