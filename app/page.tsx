@@ -1,9 +1,10 @@
 "use client"
 
 import { useEffect, useRef } from 'react'
-import { useInfiniteQuery,useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
 import PinCard from './components/PinCard'
 import { FiAlertCircle, FiImage, FiCheckCircle } from 'react-icons/fi'
+import Spinner from './components/Spinner'
 
 const LIMIT = 12
 
@@ -65,7 +66,7 @@ export default function Home() {
   if (isLoading) {
     return (
       <main className="min-h-[60vh] flex items-center justify-center">
-        <div className="w-9 h-9 border-[3px] border-gray-200 border-t-red-500 rounded-full animate-spin" />
+        <Spinner size="lg" className='mt-35'/>
       </main>
     )
   }
@@ -110,11 +111,8 @@ export default function Home() {
       <div ref={sentinelRef} className="h-4" />
 
       {isFetchingNextPage && (
-        <div className="flex justify-center items-center gap-2.5 py-8">
-          <div className="w-6 h-6 border-[3px] border-gray-200 border-t-red-500 rounded-full animate-spin" />
-          <span className="text-xs text-gray-400 font-medium">
-            در حال بارگذاری پین‌های بیشتر...
-          </span>
+        <div className="flex justify-center items-center py-8">
+          <Spinner size="sm" label="در حال بارگذاری پین‌های بیشتر..." />
         </div>
       )}
 

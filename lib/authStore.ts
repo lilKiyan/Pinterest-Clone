@@ -1,17 +1,9 @@
 import { create } from 'zustand'
-
-type User = {
-    id: string,
-    name: string,
-    email: string,
-    username: string,
-    avatar?: string,
-    bio?: string
-}
+import type { CurrentUser } from '../app/types/user'
 
 type AuthState = {
-    user: User | null
-    setUser: (user: User | null) => void
+    user: CurrentUser | null
+    setUser: (user: CurrentUser | null) => void
 }
 
 export const useAuthStore = create<AuthState>((set) => ({

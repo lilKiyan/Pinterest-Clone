@@ -8,6 +8,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { IoSend } from 'react-icons/io5'
 import { FiArrowRight, FiMessageCircle, FiChevronDown, FiAlertCircle } from 'react-icons/fi'
 import { CONTENT_LIMITS } from '@/lib/validations'
+import Spinner from '@/app/components/Spinner'
 
 type Message = {
     id: string
@@ -262,7 +263,7 @@ export default function ChatPage() {
                 <div className="max-w-2xl mx-auto space-y-3">
                     {loading ? (
                         <div className="flex justify-center py-20">
-                            <div className="w-9 h-9 border-[3px] border-gray-200 border-t-red-500 rounded-full animate-spin" />
+                            <Spinner size="md" className='mt-25'/>
                         </div>
                     ) : isError ? (
                         <div className="flex flex-col items-center py-16 text-center">
@@ -385,7 +386,7 @@ export default function ChatPage() {
                                 }`}
                         >
                             {sendMessage.isPending ? (
-                                <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                                <Spinner size="md" />
                             ) : (
                                 <IoSend className="w-5 h-5" />
                             )}

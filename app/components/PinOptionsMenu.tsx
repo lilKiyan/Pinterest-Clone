@@ -6,37 +6,28 @@ import {
     FiMoreHorizontal,
     FiDownload,
     FiShare2,
-    FiEyeOff,
     FiFlag,
     FiEdit2,
     FiTrash2,
 } from 'react-icons/fi'
 
 const RADIUS = 70
-
 const ROTATION_RIGHT_EDGE = -270
 const EDGE_THRESHOLD = 220
 
+
+const ANGLE_STEP = 35
+const BASE_ANGLE = 20
+
 const ALL_OPTIONS = [
-    { key: 'download', icon: FiDownload, label: 'دانلود', angle: 15, ownerOnly: false },
-    { key: 'share', icon: FiShare2, label: 'اشتراک‌گذاری', angle: 55, ownerOnly: false },
-    { key: 'hide', icon: FiEyeOff, label: 'مخفی کردن', angle: 100, ownerOnly: false },
-    { key: 'flag', icon: FiFlag, label: 'گزارش', angle: 145, ownerOnly: false },
-    { key: 'edit', icon: FiEdit2, label: 'ویرایش', angle: 190, ownerOnly: true },
-    { key: 'delete', icon: FiTrash2, label: 'حذف', angle: 235, ownerOnly: true },
-]
+    { key: 'download', icon: FiDownload, label: 'دانلود', ownerOnly: false },
+    { key: 'share', icon: FiShare2, label: 'اشتراک‌گذاری', ownerOnly: false },
+    { key: 'flag', icon: FiFlag, label: 'گزارش', ownerOnly: false, notForOwner: true },
+    { key: 'edit', icon: FiEdit2, label: 'ویرایش', ownerOnly: true },
+    { key: 'delete', icon: FiTrash2, label: 'حذف', ownerOnly: true },
+] as const
 
-const PUBLIC_OPTIONS = [
-    { icon: FiDownload, label: 'دانلود', angle: 15 },
-    { icon: FiShare2, label: 'اشتراک‌گذاری', angle: 55 },
-    { icon: FiEyeOff, label: 'مخفی کردن', angle: 100 },
-    { icon: FiFlag, label: 'گزارش', angle: 145 },
-]
-
-const OWNER_OPTIONS = [
-    { icon: FiEdit2, label: 'ویرایش', angle: 190 },
-    { icon: FiTrash2, label: 'حذف', angle: 235 },
-]
+export type OptionKey = (typeof ALL_OPTIONS)[number]['key']
 
 const STAGGER_MS = 55
 const BUTTON_SIZE = 36
@@ -48,6 +39,9 @@ const getIconStyles = (label: string) => {
     if (label === 'ویرایش') {
         return 'text-blue-600 hover:bg-gradient-to-br hover:from-blue-100 hover:to-blue-200 hover:shadow-[0_8px_25px_rgba(59,130,246,0.4)] hover:ring-2 hover:ring-blue-300'
     }
+    if (label === 'اشتراک‌گذاری') {
+        return 'text-indigo-600 hover:bg-gradient-to-br hover:from-indigo-100 hover:to-indigo-200 hover:shadow-[0_8px_25px_rgba(99,102,241,0.4)] hover:ring-2 hover:ring-indigo-300'
+    }
     return 'text-gray-700 hover:bg-gradient-to-br hover:from-gray-100 hover:to-gray-200 hover:shadow-[0_8px_25px_rgba(0,0,0,0.2)] hover:ring-2 hover:ring-gray-300'
 }
 
@@ -55,18 +49,23 @@ type PinOptionsMenuProps = {
     onEdit?: () => void
     onDelete?: () => void
     onDownload?: () => void
+    onShare?: () => void
+    onReport?: () => void   // ✅ برای فیچر گزارش — فعلاً اختیاری، بعداً به مودال وصل میشه
     rotationDefault?: number
     isOwner?: boolean
-    excludedOptions?: string[]
+    excludedOptions?: OptionKey[]
 }
 
-const PinOptionsMenu = ({ onEdit, onDelete, onDownload, isOwner = false, rotationDefault = -90, excludedOptions }: PinOptionsMenuProps) => {
-    // ساخت لیست نهایی
-    const filteredOptions = ALL_OPTIONS.filter(option => {
-        if (option.ownerOnly && !isOwner) return false;   // گزینه‌های مالک فقط برای مالک
-        if (excludedOptions && excludedOptions.includes(option.key)) return false;   // حذف گزینه‌های مشخص‌شده
-        return true;
-    });
+const PinOptionsMenu = ({
+    onEdit,
+    onDelete,
+    onDownload,
+    onShare,
+    onReport,
+    isOwner = false,
+    rotationDefault = -90,
+    excludedOptions,
+}: PinOptionsMenuProps) => {
     const [isOpen, setIsOpen] = useState(false)
     const [visibleOpen, setVisibleOpen] = useState(false)
     const [anchor, setAnchor] = useState<{ top: number; left: number; rotation: number } | null>(null)
@@ -75,7 +74,18 @@ const PinOptionsMenu = ({ onEdit, onDelete, onDownload, isOwner = false, rotatio
     const triggerRef = useRef<HTMLButtonElement>(null)
     const menuRef = useRef<HTMLDivElement>(null)
 
-    const allOptions = isOwner ? [...PUBLIC_OPTIONS, ...OWNER_OPTIONS] : PUBLIC_OPTIONS
+    // ✅ فیلتر + توزیع داینامیک زاویه‌ها
+    const filteredOptions = ALL_OPTIONS
+        .filter((option) => {
+            if (option.ownerOnly && !isOwner) return false                                    // ✅ برگشت به خانه
+            if ('notForOwner' in option && option.notForOwner && isOwner) return false        // ✅ شرط جدید میمونه
+            if (excludedOptions && excludedOptions.includes(option.key)) return false
+            return true
+        })
+        .map((option, index) => ({
+            ...option,
+            angle: BASE_ANGLE + index * ANGLE_STEP, // ✅ بدون گپ، فارغ از تعداد
+        }))
 
     useEffect(() => setMounted(true), [])
 
@@ -130,9 +140,18 @@ const PinOptionsMenu = ({ onEdit, onDelete, onDownload, isOwner = false, rotatio
     }, [isOpen])
 
     const getTransitionStyle = (index: number, isOpen: boolean, isVisible: boolean) => {
-        const delay = isVisible ? index * STAGGER_MS : (allOptions.length - 1 - index) * STAGGER_MS
+        const delay = isVisible ? index * STAGGER_MS : (filteredOptions.length - 1 - index) * STAGGER_MS
         const easing = isOpen ? 'cubic-bezier(0.34, 1.56, 0.64, 1)' : 'cubic-bezier(0.4, 0, 1, 1)'
         return `transform 300ms ${easing} ${delay}ms, opacity 300ms ${easing} ${delay}ms, background-color 200ms ease 0ms, box-shadow 200ms ease 0ms, ring 200ms ease 0ms`
+    }
+
+    const handleOptionClick = (key: OptionKey) => {
+        if (key === 'download' && onDownload) onDownload()
+        if (key === 'share' && onShare) onShare()
+        if (key === 'flag' && onReport) onReport()   // ✅ آماده برای مودال گزارش
+        if (key === 'edit' && onEdit) onEdit()
+        if (key === 'delete' && onDelete) onDelete()
+        setIsOpen(false)
     }
 
     return (
@@ -144,8 +163,7 @@ const PinOptionsMenu = ({ onEdit, onDelete, onDownload, isOwner = false, rotatio
                 className="group/three-dot relative z-20 px-1.5 py-1.5 rounded-full hover:bg-gray-100 transition-all duration-200 cursor-pointer"
             >
                 <FiMoreHorizontal
-                    className={`w-5 h-5 text-gray-800 transition-transform duration-300 ${isOpen ? 'rotate-90' : 'group-hover/three-dot:scale-110'
-                        }`}
+                    className={`w-5 h-5 text-gray-800 transition-transform duration-300 ${isOpen ? 'rotate-90' : 'group-hover/three-dot:scale-110'}`}
                 />
             </button>
 
@@ -155,7 +173,7 @@ const PinOptionsMenu = ({ onEdit, onDelete, onDownload, isOwner = false, rotatio
                     style={{ position: 'fixed', top: anchor.top, left: anchor.left }}
                     className="z-[9999] pointer-events-none"
                 >
-                    {allOptions.map((option, index) => {
+                    {filteredOptions.map((option, index) => {
                         const angleRad = ((option.angle + anchor.rotation) * Math.PI) / 180
                         const dx = Math.cos(angleRad) * RADIUS
                         const dy = -Math.sin(angleRad) * RADIUS
@@ -164,14 +182,9 @@ const PinOptionsMenu = ({ onEdit, onDelete, onDownload, isOwner = false, rotatio
 
                         return (
                             <button
-                                key={option.label}
+                                key={option.key}
                                 title={option.label}
-                                onClick={() => {
-                                    if (option.label === 'دانلود' && onDownload) onDownload()
-                                    if (option.label === 'ویرایش' && onEdit) onEdit()
-                                    if (option.label === 'حذف' && onDelete) onDelete()
-                                    setIsOpen(false)
-                                }}
+                                onClick={() => handleOptionClick(option.key)}
                                 style={{
                                     position: 'absolute',
                                     top: 0,
@@ -187,7 +200,7 @@ const PinOptionsMenu = ({ onEdit, onDelete, onDownload, isOwner = false, rotatio
                                 }}
                                 className={`rounded-full bg-white shadow-[0_4px_14px_rgba(0,0,0,0.15)] flex items-center justify-center active:scale-95 cursor-pointer ${getIconStyles(option.label)}`}
                             >
-                                <Icon className="w-4 h-4 transition-transform duration-200 group-hover:scale-110" />
+                                <Icon className="w-4 h-4" />
                             </button>
                         )
                     })}

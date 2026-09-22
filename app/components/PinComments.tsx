@@ -4,6 +4,9 @@ import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { useAuthStore } from '@/lib/authStore'
 import { CONTENT_LIMITS } from '@/lib/validations'
+import type { CommentDTO } from '../types/pinComment'
+import Spinner from '@/app/components/Spinner'
+
 import {
     FiMessageCircle,
     FiTrash2,
@@ -16,14 +19,15 @@ type PinCommentsProps = {
     onRequireLogin?: () => void
 }
 
+
 export default function PinComments({ pinId, onRequireLogin }: PinCommentsProps) {
     const { user } = useAuthStore()
-    const [comments, setComments] = useState<any[]>([])
+    const [comments, setComments] = useState<CommentDTO[]>([])
     const [newComment, setNewComment] = useState('')
     const [loadingComments, setLoadingComments] = useState(true)
     const [commentError, setCommentError] = useState('')
 
-    const [commentToDelete, setCommentToDelete] = useState<any>(null)
+    const [commentToDelete, setCommentToDelete] = useState<CommentDTO | null>(null)
     const [isModalClosing, setIsModalClosing] = useState(false)
 
     const commentLength = newComment.length
@@ -107,7 +111,7 @@ export default function PinComments({ pinId, onRequireLogin }: PinCommentsProps)
         return new Date(date).toLocaleDateString('fa-IR')
     }
 
-    const openDeleteCommentModal = (comment: any) => {
+    const openDeleteCommentModal = (comment: CommentDTO) => {
         setCommentToDelete(comment)
         setIsModalClosing(false)
     }
@@ -143,7 +147,7 @@ export default function PinComments({ pinId, onRequireLogin }: PinCommentsProps)
             {/* لیست کامنت‌ها */}
             {loadingComments ? (
                 <div className="flex justify-center py-8">
-                    <div className="w-7 h-7 border-2 border-gray-100 border-t-red-500 rounded-full animate-spin" />
+                    <Spinner size="sm" />
                 </div>
             ) : comments.length === 0 ? (
                 <div className="text-center py-10">
@@ -165,7 +169,7 @@ export default function PinComments({ pinId, onRequireLogin }: PinCommentsProps)
                         [&::-webkit-scrollbar-thumb]:rounded-full
                         [&::-webkit-scrollbar-track]:bg-transparent">
 
-                        {comments.map((comment: any, index: number) => {
+                        {comments.map((comment, index) => {
                             const isMine = user && comment.userId === user.id
                             return (
                                 <div
@@ -190,8 +194,8 @@ export default function PinComments({ pinId, onRequireLogin }: PinCommentsProps)
                                     <div className="flex-1 min-w-0">
                                         <div
                                             className={`rounded-2xl px-4 py-3 ring-1 transition-all duration-200 ${isMine
-                                                    ? 'bg-gradient-to-br from-red-50/80 to-rose-50/50 ring-red-100/80'
-                                                    : 'bg-gray-50/80 ring-gray-100 group-hover/comment:bg-white group-hover/comment:ring-gray-200'
+                                                ? 'bg-gradient-to-br from-red-50/80 to-rose-50/50 ring-red-100/80'
+                                                : 'bg-gray-50/80 ring-gray-100 group-hover/comment:bg-white group-hover/comment:ring-gray-200'
                                                 }`}
                                         >
                                             <div className="flex items-center gap-2 mb-1">
@@ -256,8 +260,8 @@ export default function PinComments({ pinId, onRequireLogin }: PinCommentsProps)
                             }}
                             placeholder="دیدگاه خود را بنویسید..."
                             className={`w-full bg-gray-50 ring-1 rounded-full pr-4 pl-37 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 transition-all duration-200 ${isOverLimit
-                                    ? 'ring-red-300 focus:ring-red-400'
-                                    : 'ring-gray-200/70 focus:ring-red-300/60'
+                                ? 'ring-red-300 focus:ring-red-400'
+                                : 'ring-gray-200/70 focus:ring-red-300/60'
                                 }`}
                         />
 
@@ -266,10 +270,10 @@ export default function PinComments({ pinId, onRequireLogin }: PinCommentsProps)
                             {newComment.length > 0 && (
                                 <span
                                     className={`inline-flex items-center gap-0.5 h-6 px-2 rounded-full text-[10px] font-bold tabular-nums transition-all duration-200 ${isOverLimit
-                                            ? 'bg-red-100 text-red-600 ring-1 ring-red-300 animate-pulse'
-                                            : isNearLimit
-                                                ? 'bg-orange-100 text-orange-600 ring-1 ring-orange-200'
-                                                : 'bg-gray-200/80 text-gray-500'
+                                        ? 'bg-red-100 text-red-600 ring-1 ring-red-300 animate-pulse'
+                                        : isNearLimit
+                                            ? 'bg-orange-100 text-orange-600 ring-1 ring-orange-200'
+                                            : 'bg-gray-200/80 text-gray-500'
                                         }`}
                                 >
                                     <span>{commentLength}</span>
@@ -283,8 +287,8 @@ export default function PinComments({ pinId, onRequireLogin }: PinCommentsProps)
                                 disabled={!newComment.trim() || isOverLimit}
                                 aria-label="ارسال کامنت"
                                 className={`h-8 px-3.5 rounded-full flex items-center gap-1.5 text-xs font-bold transition-all duration-200 cursor-pointer ${newComment.trim() && !isOverLimit
-                                        ? 'bg-gradient-to-l from-red-500 to-rose-600 text-white shadow-md shadow-red-200 hover:shadow-lg hover:shadow-red-300/60 hover:brightness-105 active:scale-95'
-                                        : 'bg-gray-200/80 text-gray-400 cursor-not-allowed'
+                                    ? 'bg-gradient-to-l from-red-500 to-rose-600 text-white shadow-md shadow-red-200 hover:shadow-lg hover:shadow-red-300/60 hover:brightness-105 active:scale-95'
+                                    : 'bg-gray-200/80 text-gray-400 cursor-not-allowed'
                                     }`}
                             >
                                 ارسال
@@ -316,8 +320,8 @@ export default function PinComments({ pinId, onRequireLogin }: PinCommentsProps)
             {commentToDelete && (
                 <div
                     className={`fixed inset-0 z-[150] flex items-center justify-center p-4 ${isModalClosing
-                            ? 'animate-[fadeOut_0.2s_ease-in]'
-                            : 'animate-[fadeIn_0.2s_ease-out]'
+                        ? 'animate-[fadeOut_0.2s_ease-in]'
+                        : 'animate-[fadeIn_0.2s_ease-out]'
                         }`}
                 >
                     <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={closeDeleteCommentModal} />

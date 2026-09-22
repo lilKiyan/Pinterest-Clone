@@ -88,7 +88,7 @@ export default function ProfilePage() {
     }
 
     return (
-        <main className="mb-12">
+        <main className="mb-18">
             {/* هیرو */}
             <div className="relative overflow-hidden bg-[#150a08] px-4 sm:px-8 pt-14 pb-20 sm:pb-24">
                 <div className="absolute -top-24 -right-16 w-72 h-72 bg-red-600/40 rounded-full blur-[100px] animate-pulse" />
@@ -102,19 +102,19 @@ export default function ProfilePage() {
                 <div className="relative z-10 max-w-6xl mx-auto flex flex-col items-center text-center">
                     <div className="relative group">
                         <div className="absolute inset-0 rounded-full bg-gradient-to-br from-red-500 to-orange-500 opacity-0 group-hover:opacity-30 blur-lg transition-opacity duration-500" />
-<div className="w-28 h-28 sm:w-32 sm:h-32 rounded-full overflow-hidden bg-gradient-to-br from-red-500 via-red-600 to-orange-500 ring-4 ring-white/20 shadow-2xl flex items-center justify-center text-4xl sm:text-5xl font-black text-white transition-all duration-300 group-hover:scale-105 group-hover:ring-white/40 group-hover:shadow-2xl">
-    {user.avatar ? (
-        <img
-            src={user.avatar}
-            alt={user.name}
-            className="w-full h-full object-cover"
-        />
-    ) : (
-        <span className="leading-none">
-            {user.username?.charAt(0).toUpperCase() || '؟'}
-        </span>
-    )}
-</div>
+                        <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-full overflow-hidden bg-gradient-to-br from-red-500 via-red-600 to-orange-500 ring-4 ring-white/20 shadow-2xl flex items-center justify-center text-4xl sm:text-5xl font-black text-white transition-all duration-300 group-hover:scale-105 group-hover:ring-white/40 group-hover:shadow-2xl">
+                            {user.avatar ? (
+                                <img
+                                    src={user.avatar}
+                                    alt={user.name}
+                                    className="w-full h-full object-cover"
+                                />
+                            ) : (
+                                <span className="leading-none">
+                                    {user.username?.charAt(0).toUpperCase() || '؟'}
+                                </span>
+                            )}
+                        </div>
                         <div className="absolute -bottom-1.5 -left-1.5 w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-lg transition-transform duration-300 group-hover:rotate-12">
                             <FiGrid className="w-3.5 h-3.5 text-red-600" />
                         </div>
@@ -202,7 +202,7 @@ export default function ProfilePage() {
                                         key={pin.id}
                                         pin={pin}
                                         onDeletePin={handlePinDeleted}
-                                        optionsRotationDefault={-125}
+                                        optionsRotationDefault={-105}
                                     />
                                 ))}
                             </div>

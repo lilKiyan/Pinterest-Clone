@@ -6,6 +6,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import PinCard from '../components/PinCard'
 import BoardCard from '../components/BoardCard'
 import { FiPlus, FiGrid, FiBookmark, FiFolder, FiImage } from 'react-icons/fi'
+import type { PinDTO } from '../types/pin'
+import type { Board as BoardDTO } from '../types/board'
+import Spinner from '@/app/components/Spinner'
 
 const CreateEditBoardModal = dynamic(() => import('../components/CreateEditBoardModal'), { ssr: false })
 const DeleteBoardModal = dynamic(() => import('../components/DeleteBoardModal'), { ssr: false })
@@ -15,12 +18,12 @@ type Tab = 'my-pins' | 'saved-pins' | 'boards'
 export default function MyBoardsPage() {
     const [activeTab, setActiveTab] = useState<Tab>('my-pins')
     const [isBoardModalOpen, setIsBoardModalOpen] = useState(false)
-    const [editingBoard, setEditingBoard] = useState<any>(null)
-    const [boardToDelete, setBoardToDelete] = useState<any>(null)
+    const [editingBoard, setEditingBoard] = useState<BoardDTO | null>(null)
+    const [boardToDelete, setBoardToDelete] = useState<BoardDTO | null>(null)
 
     const queryClient = useQueryClient()
 
-    const { data: myPins = [], isLoading: loadingMyPins } = useQuery<any[]>({
+    const { data: myPins = [], isLoading: loadingMyPins } = useQuery<PinDTO[]>({
         queryKey: ['my-pins'],
         queryFn: async () => {
             const res = await fetch('/api/pins/mine')
@@ -31,7 +34,7 @@ export default function MyBoardsPage() {
         staleTime: 60 * 1000,
     })
 
-    const { data: savedPins = [], isLoading: loadingSavedPins } = useQuery<any[]>({
+    const { data: savedPins = [], isLoading: loadingSavedPins } = useQuery<PinDTO[]>({
         queryKey: ['saved-pins'],
         queryFn: async () => {
             const res = await fetch('/api/saves')
@@ -45,7 +48,7 @@ export default function MyBoardsPage() {
     const {
         data: boards = [],
         isLoading: loadingBoards,
-    } = useQuery<any[]>({
+    } = useQuery<BoardDTO[]>({
         queryKey: ['boards'],
         queryFn: async () => {
             const res = await fetch('/api/boards')
@@ -62,7 +65,7 @@ export default function MyBoardsPage() {
         setIsBoardModalOpen(true)
     }
 
-    const openEditBoardModal = (board: any) => {
+    const openEditBoardModal = (board: BoardDTO) => {
         setEditingBoard(board)
         setIsBoardModalOpen(true)
     }
@@ -79,7 +82,7 @@ export default function MyBoardsPage() {
     // ── callback بعد از حذف برد ──
     const handleBoardDeleted = (boardId: string) => {
         // آپدیت فوری cache (Optimistic)
-        queryClient.setQueryData<any[]>(['boards'], (old) => {
+        queryClient.setQueryData<BoardDTO[]>(['boards'], (old) => {
             if (!old) return old
             return old.filter((b) => b.id !== boardId)
         })
@@ -90,13 +93,13 @@ export default function MyBoardsPage() {
     // ── callback بعد از حذف پین (برای آپدیت فوری UI) ──
     const handlePinDeleted = (pinId: string) => {
         // ۱. آپدیت فوری کش "پین‌های من" (Optimistic)
-        queryClient.setQueryData<any[]>(['my-pins'], (old) => {
+        queryClient.setQueryData<PinDTO[]>(['my-pins'], (old) => {
             if (!old) return old
-            return old.filter((p) => p.id !== pinId)
+            return old.filter((p) => p.id !== pinId)   
         })
 
         // ۲. آپدیت فوری کش "پین‌های ذخیره‌شده" (چون ممکنه کاربر از اونجا هم حذف کرده باشه)
-        queryClient.setQueryData<any[]>(['saved-pins'], (old) => {
+        queryClient.setQueryData<PinDTO[]>(['saved-pins'], (old) => {
             if (!old) return old
             return old.filter((p) => p.id !== pinId)
         })
@@ -106,11 +109,11 @@ export default function MyBoardsPage() {
         queryClient.invalidateQueries({ queryKey: ['saved-pins'] })
     }
 
-    const renderPins = (pins: any[], loading: boolean, emptyMessage: string) => (
+    const renderPins = (pins: PinDTO[], loading: boolean, emptyMessage: string) => (
         <div>
             {loading ? (
                 <div className="flex justify-center py-24">
-                    <div className="w-9 h-9 border-[3px] border-gray-200 border-t-red-500 rounded-full animate-spin" />
+                    <Spinner size="md" className='mt-15'/>
                 </div>
             ) : pins.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-24 text-center">
@@ -125,7 +128,7 @@ export default function MyBoardsPage() {
                         <PinCard
                             key={pin.id}
                             pin={pin}
-                            optionsRotationDefault={-125}
+                            optionsRotationDefault={-100}
                             onDeletePin={handlePinDeleted}       // ✅ برای وقتی که کل پین حذف میشه
                             onRemoveFromBoard={handlePinDeleted} // ✅ برای وقتی که پین از برد خارج میشه (توی تب ذخیره‌شده‌ها)
                         />

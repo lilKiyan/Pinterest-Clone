@@ -3,8 +3,10 @@
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import PinCard from '@/app/components/PinCard'
+import Image from 'next/image'
 import { useAuthStore } from '@/lib/authStore'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import Spinner from '@/app/components/Spinner'
 
 import {
     FiArrowRight,
@@ -80,6 +82,7 @@ export default function UserProfilePage() {
                     },
                 }
             })
+            queryClient.invalidateQueries({ queryKey: ['user', id] })
         },
     })
 
@@ -103,7 +106,7 @@ export default function UserProfilePage() {
     if (loading) {
         return (
             <main dir="rtl" className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 via-white to-orange-50">
-                <div className="w-10 h-10 border-4 border-gray-200 border-t-red-500 rounded-full animate-spin" />
+                <Spinner size="lg" />
             </main>
         )
     }
@@ -148,9 +151,11 @@ export default function UserProfilePage() {
                         <div className="p-[3px] rounded-full bg-gradient-to-br from-red-500 via-rose-500 to-orange-400 shadow-xl shadow-red-200/50 transition-transform duration-300 group-hover:scale-[1.03]">
                             <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden bg-white ring-4 ring-white flex items-center justify-center text-3xl sm:text-4xl font-black text-white bg-gradient-to-br from-red-500 to-orange-500">
                                 {profileUser.avatar ? (
-                                    <img
+                                    <Image
                                         src={profileUser.avatar}
                                         alt={profileUser.name}
+                                        width={112}
+                                        height={112}
                                         className="w-full h-full object-cover"
                                     />
                                 ) : (
@@ -255,7 +260,7 @@ export default function UserProfilePage() {
             </div>
 
             {/* ═══════════ پین‌های کاربر ═══════════ */}
-            <div className="max-w-[1400px] mx-auto px-4 sm:px-8 mt-12">
+            <div className="max-w-[1400px] mx-auto px-4 sm:px-8 mt-12 mb-15">
                 <div className="flex items-center gap-3 mb-6">
                     <h2 className="flex items-center gap-2 font-bold text-gray-900 text-sm shrink-0">
                         <span className="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center">
@@ -276,8 +281,8 @@ export default function UserProfilePage() {
                     </div>
                 ) : (
                     <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4 space-y-4">
-                        {pins.map((pin: any) => (
-                            <PinCard key={pin.id} pin={pin} />
+                        {pins.map((pin: any, index: number) => (
+                            <PinCard key={pin.id} pin={pin} priority={index < 4} />
                         ))}
                     </div>
                 )}

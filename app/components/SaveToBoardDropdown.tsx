@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { FiSearch, FiPlus, FiChevronDown, FiCheck, FiBookmark } from 'react-icons/fi'
 import Image from 'next/image'
+import type { SavedBoardInfo } from '../types/pin'
 
 export type Board = {
     id: string
@@ -13,7 +14,7 @@ export type Board = {
 
 type SaveToBoardDropdownProps = {
     boards: Board[]
-    savedBoards: { boardId: string; boardName: string }[]
+    savedBoards?: SavedBoardInfo[]
     onToggleSave: (board: Board) => void
     onCreateBoard: (name: string) => void
     isLoadingBoards: boolean
@@ -24,7 +25,7 @@ const DROPDOWN_ANIMATION_MS = 220
 
 const SaveToBoardDropdown = ({
     boards,
-    savedBoards,
+    savedBoards = [],
     onToggleSave,
     onCreateBoard,
     isLoadingBoards,

@@ -8,6 +8,7 @@ import PinCard from '../components/PinCard'
 import UserCard, { type SearchUser } from '../components/UserCard'
 import { useAuthStore } from '@/lib/authStore'
 import { FiSearch, FiX, FiUsers, FiGrid } from 'react-icons/fi'
+import Spinner from '@/app/components/Spinner'
 
 type Tab = 'pins' | 'users'
 
@@ -317,10 +318,7 @@ export default function SearchPage() {
         <Suspense
             fallback={
                 <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 via-white to-red-50/40">
-                    <div className="flex flex-col items-center gap-3">
-                        <div className="w-10 h-10 border-4 border-gray-200 border-t-red-500 rounded-full animate-spin" />
-                        <p className="text-sm text-gray-400 font-medium">در حال بارگذاری...</p>
-                    </div>
+<Spinner size="md" />
                 </main>
             }
         >

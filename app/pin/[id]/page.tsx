@@ -7,6 +7,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import dynamic from 'next/dynamic'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import Spinner from '@/app/components/Spinner'
 
 const PinCard = dynamic(() => import('@/app/components/PinCard'), {
     ssr: false,
@@ -377,10 +378,7 @@ export default function PinDetailPage() {
     if (loading) {
         return (
             <main dir="rtl" className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 via-white to-orange-50">
-                <div className="flex flex-col items-center gap-4">
-                    <div className="w-14 h-14 border-4 border-red-100 border-t-red-500 rounded-full animate-spin" />
-                    <p className="text-sm text-gray-400 font-medium">در حال بارگذاری...</p>
-                </div>
+                <Spinner size="md" />
             </main>
         )
     }
@@ -408,7 +406,7 @@ export default function PinDetailPage() {
     }
 
     return (
-        <main dir="rtl" className="relative mb-15 min-h-screen overflow-hidden bg-gradient-to-br from-red-50/60 via-white to-orange-50/50 py-6 md:py-10 px-2">
+        <main dir="rtl" className="relative min-h-screen overflow-hidden bg-gradient-to-br from-red-50/60 via-white to-orange-50/50 py-6 md:py-10 px-2">
             <div className="absolute -top-32 -left-32 w-96 h-96 bg-red-100/50 rounded-full blur-3xl pointer-events-none" />
             <div className="absolute -bottom-32 -right-32 w-[28rem] h-[28rem] bg-orange-100/40 rounded-full blur-3xl pointer-events-none" />
 
@@ -606,7 +604,7 @@ export default function PinDetailPage() {
                                         </div>
                                         {loadingBoards ? (
                                             <div className="flex justify-center py-6">
-                                                <div className="w-7 h-7 border-2 border-gray-100 border-t-red-500 rounded-full animate-spin" />
+                                                <Spinner size="md" />
                                             </div>
                                         ) : boards.length === 0 ? (
                                             <div className="text-center py-6">
@@ -660,7 +658,7 @@ export default function PinDetailPage() {
             </div>
 
             {relatedPins.length > 0 && (
-                <section className="mt-12 px-6">
+                <section className="mt-12 px-6  mb-15">
                     <div className="flex items-center gap-3 mb-6">
                         <div className="w-10 h-10 rounded-2xl bg-red-50 flex items-center justify-center">
                             <FiGrid className="w-5 h-5 text-red-600" />
@@ -672,12 +670,12 @@ export default function PinDetailPage() {
 
                     {loadingRelated ? (
                         <div className="flex justify-center py-12">
-                            <div className="w-8 h-8 border-4 border-gray-200 border-t-red-500 rounded-full animate-spin" />
+                            <Spinner size="md" />
                         </div>
                     ) : (
                         <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4 space-y-4">
                             {relatedPins.map((p) => (
-                                <PinCard key={p.id} pin={p} optionsRotationDefault={-80} />
+                                <PinCard key={p.id} pin={p} optionsRotationDefault={-60} />
                             ))}
                         </div>
                     )}

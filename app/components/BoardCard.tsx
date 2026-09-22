@@ -3,17 +3,20 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { FiEdit2, FiTrash2 } from 'react-icons/fi'
+import type { Board, BoardPinPreview } from '../types/board'
+
+type BoardCardProps = {
+    board: Board
+    onEdit?: () => void
+    onDelete?: () => void
+}
 
 export default function BoardCard({
     board,
     onEdit,
     onDelete,
-}: {
-    board: any
-    onEdit?: () => void
-    onDelete?: () => void
-}) {
-    const coverPins = board.pins || []
+}:BoardCardProps) {
+    const coverPins: BoardPinPreview[] = board.pins || []
 
     return (
         <div className="group relative">
@@ -27,7 +30,7 @@ export default function BoardCard({
                 >
                     {coverPins.length > 0 ? (
                         <div className="grid grid-cols-2 gap-0.5 aspect-square">
-                            {coverPins.map((pin: any, idx: number) => (
+                            {coverPins.map((pin, idx) => (
                                 <div
                                     key={pin.id}
                                     className={`relative overflow-hidden ${coverPins.length === 1 ? 'col-span-2 row-span-2' : ''

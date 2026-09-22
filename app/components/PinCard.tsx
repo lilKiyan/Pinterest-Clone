@@ -4,9 +4,13 @@ import Link from 'next/link'
 import Image from 'next/image'
 import dynamic from 'next/dynamic'
 import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { FiUpload, FiCheckCircle, FiFolder } from 'react-icons/fi'
+import { useMutation, useQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query'
+import { FiUpload, FiCheckCircle, FiFolder, FiEyeOff, FiRotateCcw } from 'react-icons/fi'
 import type { Board } from './SaveToBoardDropdown'
+import type { OptionKey } from './PinOptionsMenu'
+import type { PinDTO } from '../types/pin'
+import type { Board as BoardDTO } from '../types/board'
+const ReportPinModal = dynamic(() => import('./ReportPinModal'), { ssr: false })
 
 const SaveToBoardDropdown = dynamic(() => import('./SaveToBoardDropdown'), {
     ssr: false,
@@ -32,20 +36,11 @@ const DeletePinModal = dynamic(() => import('./DeletePinModal'), { ssr: false })
 const EditPinModal = dynamic(() => import('./EditPinModal'), { ssr: false })
 
 type PinCardProps = {
-    pin: {
-        id: string
-        title: string
-        description?: string
-        imageUrl: string
-        isOwner?: boolean
-        imageWidth?: number | null
-        imageHeight?: number | null
-        savedBoards?: { boardId: string; boardName: string }[]
-    }
+    pin: PinDTO
     onDeletePin?: (pinId: string) => void
     onRemoveFromBoard?: (pinId: string) => void
     optionsRotationDefault?: number
-    menuExcluded?: string[]
+    menuExcluded?: OptionKey[]
     priority?: boolean
 }
 
@@ -55,6 +50,13 @@ type SaveMutationVariables = {
     action: 'save' | 'unsave'
     boardName?: string
 }
+
+// ── شکل کش صفحه‌ی اصلی (useInfiniteQuery با کلید ['pins']) ──
+type PinsPage = {
+    pins: PinDTO[]
+    hasMore: boolean
+}
+type PinsCache = InfiniteData<PinsPage>
 
 const PinCard = ({
     pin,
@@ -73,10 +75,14 @@ const PinCard = ({
     const [isEditModalOpen, setIsEditModalOpen] = useState(false)
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
     const [showDeletedToast, setShowDeletedToast] = useState(false)
+    const [showReportToast, setShowReportToast] = useState(false)
     const [isSaveMenuOpen, setIsSaveMenuOpen] = useState(false)
+    const [isReportModalOpen, setIsReportModalOpen] = useState(false)
+    const [isUnreporting, setIsUnreporting] = useState(false)
+
 
     // ── Query: بردهای کاربر (مشترک بین همه‌ی PinCard ها) ──
-    const { data: boardsRaw = [], isLoading: isLoadingBoards } = useQuery({
+    const { data: boardsRaw = [], isLoading: isLoadingBoards } = useQuery<BoardDTO[]>({
         queryKey: ['boards'],
         queryFn: async () => {
             const res = await fetch('/api/boards')
@@ -86,7 +92,8 @@ const PinCard = ({
         staleTime: 60 * 1000,
     })
 
-    const boards: Board[] = boardsRaw.map((b: any) => ({
+    // ✅ بدون any و بدون annotation — TS از BoardDTO[] استنباط می‌کنه
+    const boards = boardsRaw.map((b) => ({
         id: b.id,
         name: b.name,
         thumbnail: b.pins?.[0]?.imageUrl || '/placeholder.jpg',
@@ -95,7 +102,8 @@ const PinCard = ({
 
     // ── Mutation: ساخت برد جدید ──
     const createBoardMutation = useMutation({
-        mutationFn: async (name: string) => {
+        // از نتیجه استفاده نمی‌کنیم → حداقلی کافیه
+        mutationFn: async (name: string): Promise<{ id: string; name: string }> => {
             const res = await fetch('/api/boards', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -115,7 +123,8 @@ const PinCard = ({
 
     // ── Mutation: ذخیره/حذف پین از برد ──
     const saveMutation = useMutation({
-        mutationFn: async ({ pinId, boardId, action }: SaveMutationVariables) => {
+        // نتیجه‌ی response استفاده نمیشه → unknown (صادقانه‌ترین تایپ)
+        mutationFn: async ({ pinId, boardId, action }: SaveMutationVariables): Promise<unknown> => {
             const res = await fetch('/api/saves', {
                 method: action === 'save' ? 'POST' : 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
@@ -128,14 +137,14 @@ const PinCard = ({
             return res.json()
         },
         onSuccess: (_, variables) => {
-            // ✅ آپدیت مستقیم cache برای UX فوری
-            queryClient.setQueryData(['pins'], (old: any) => {
+            // ✅ آپدیت مستقیم cache برای UX فوری — با تایپ کامل، بدون any
+            queryClient.setQueryData<PinsCache>(['pins'], (old) => {
                 if (!old) return old
                 return {
                     ...old,
-                    pages: old.pages.map((page: any) => ({
+                    pages: old.pages.map((page) => ({
                         ...page,
-                        pins: page.pins.map((p: any) => {
+                        pins: page.pins.map((p) => {
                             if (p.id !== variables.pinId) return p
 
                             if (variables.action === 'save') {
@@ -153,7 +162,7 @@ const PinCard = ({
                                 return {
                                     ...p,
                                     savedBoards: (p.savedBoards || []).filter(
-                                        (sb: any) => sb.boardId !== variables.boardId
+                                        (sb) => sb.boardId !== variables.boardId
                                     ),
                                 }
                             }
@@ -172,13 +181,59 @@ const PinCard = ({
         },
     })
 
-    const handleDownload = () => {
+    const handleDownload = async () => {
+        const rawName = (pin.title || 'pin').trim() || 'pin'
+
+        // استخراج پسوند از URL
+        const ext = pin.imageUrl.split('.').pop()?.split('?')[0] || 'jpg'
+        const filename = `${rawName}.${ext}`
+
+        let downloadUrl = pin.imageUrl
+
+        if (pin.imageUrl.includes('res.cloudinary.com')) {
+            downloadUrl = pin.imageUrl.replace(
+                '/upload/',
+                `/upload/fl_attachment:${encodeURIComponent(rawName)}/`
+            )
+        }
+
         const link = document.createElement('a')
-        link.href = pin.imageUrl
-        link.download = pin.title || 'pin'
+        link.href = downloadUrl
+        link.download = filename
+        link.target = '_blank'
+        link.rel = 'noopener'
         document.body.appendChild(link)
         link.click()
         document.body.removeChild(link)
+    }
+
+    const handleUnreport = async () => {
+        setIsUnreporting(true)
+        try {
+            const res = await fetch(`/api/pins/${pin.id}/report`, { method: 'DELETE' })
+            if (!res.ok) {
+                const data = await res.json()
+                throw new Error(data.error || 'خطا در بازگردانی')
+            }
+
+            queryClient.setQueriesData<PinDTO[]>(
+                { queryKey: ['related-pins'] },
+                (old) => old?.map((p) => (p.id === pin.id ? { ...p, isReportedByMe: false } : p))
+            )
+
+            queryClient.setQueriesData<{ pins: PinDTO[] }>(
+                { queryKey: ['user'] },
+                (old) => (old
+                    ? { ...old, pins: old.pins.map((p) => (p.id === pin.id ? { ...p, isReportedByMe: false } : p)) }
+                    : old)
+            )
+
+            await queryClient.invalidateQueries()
+        } catch (err) {
+            console.error(err)
+        } finally {
+            setIsUnreporting(false)
+        }
     }
 
     const handleToggleSave = (board: Board) => {
@@ -191,6 +246,77 @@ const PinCard = ({
             action,
             boardName: board.name,
         })
+    }
+
+    const handleShare = async () => {
+        const url = `${window.location.origin}/pin/${pin.id}`
+        const title = pin.title
+
+        // ۱. اگه Web Share API در دسترس بود (موبایل)
+        if (navigator.share) {
+            try {
+                await navigator.share({ title, url })
+                return
+            } catch {
+                // کاربر انصراف داد
+                return
+            }
+        }
+
+        // ۲. Fallback: کپی به کلیپ‌بورد
+        try {
+            if (navigator.clipboard && window.isSecureContext) {
+                await navigator.clipboard.writeText(url)
+            } else {
+                // روش قدیمی برای مرورگرهای قدیمی
+                const textarea = document.createElement('textarea')
+                textarea.value = url
+                textarea.style.position = 'fixed'
+                textarea.style.opacity = '0'
+                document.body.appendChild(textarea)
+                textarea.focus()
+                textarea.select()
+                document.execCommand('copy')
+                document.body.removeChild(textarea)
+            }
+            console.log('لینک کپی شد ✅')
+        } catch (error) {
+            console.error('خطا در کپی لینک:', error)
+        }
+    }
+
+
+    // ── حالت «گزارش‌شده توسط من»: کارت بلور با بازگردانی ──
+    if (pin.isReportedByMe) {
+        return (
+            <div className="group relative break-inside-avoid mb-4">
+                <div
+                    className="relative overflow-hidden rounded-[15px] ring-1 ring-black/5 bg-gradient-to-br from-gray-50 to-red-50/40 flex flex-col items-center justify-center gap-2.5 p-4 text-center transition-all duration-300 group-hover:ring-red-200"
+                    style={{ aspectRatio: `${pin.imageWidth || 500} / ${pin.imageHeight || 750}` }}
+                >
+                    <div className="w-9 h-9 rounded-full bg-white shadow-sm ring-1 ring-black/5 flex items-center justify-center">
+                        <FiEyeOff className="w-4 h-4 text-gray-400" />
+                    </div>
+
+                    <p className="text-[11px] font-bold text-gray-500 leading-none">
+                        این پین برای شما پنهان شده
+                    </p>
+
+                    <button
+                        onClick={handleUnreport}
+                        disabled={isUnreporting}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white text-gray-500 hover:text-red-600 text-[10px] font-semibold ring-1 ring-black/5 shadow-sm hover:shadow-md active:scale-95 transition-all duration-200 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                        {isUnreporting ? (
+                            <span className="w-3 h-3 border-2 border-gray-200 border-t-red-400 rounded-full animate-spin" />
+                        ) : (
+                            <FiRotateCcw className="w-3 h-3" />
+                        )}
+                        بازگردانی
+                    </button>
+                </div>
+            </div>
+        )
     }
 
     return (
@@ -260,9 +386,11 @@ const PinCard = ({
                         onEdit={() => setIsEditModalOpen(true)}
                         onDelete={() => setIsDeleteModalOpen(true)}
                         onDownload={handleDownload}
+                        onShare={handleShare}
                         isOwner={pin.isOwner ?? false}
                         rotationDefault={optionsRotationDefault}
                         excludedOptions={menuExcluded}
+                        onReport={() => setIsReportModalOpen(true)}
                     />
                 </div>
             </div>
@@ -272,7 +400,7 @@ const PinCard = ({
                 <EditPinModal
                     pinId={pin.id}
                     initialTitle={pin.title}
-                    initialDescription={pin.description}
+                    initialDescription={pin.description ?? undefined}
                     onClose={() => setIsEditModalOpen(false)}
                 />
             )}
@@ -295,6 +423,53 @@ const PinCard = ({
                 <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] bg-white shadow-2xl border border-gray-100 rounded-2xl px-6 py-4 flex items-center gap-3 animate-[fadeInUp_0.3s_ease-out]">
                     <FiCheckCircle className="text-green-500 text-xl" />
                     <span className="text-gray-800 font-medium">پین با موفقیت حذف شد</span>
+                </div>
+            )}
+
+            {/* مودال گزارش */}
+            {isReportModalOpen && (
+                <ReportPinModal
+                    pinId={pin.id}
+                    onClose={() => setIsReportModalOpen(false)}
+                    onReported={() => {
+                        // ۱. فید خانه: پین کلاً حذف میشه
+                        queryClient.setQueryData<PinsCache>(['pins'], (old) => {
+                            if (!old) return old
+                            return {
+                                ...old,
+                                pages: old.pages.map((page) => ({
+                                    ...page,
+                                    pins: page.pins.filter((p) => p.id !== pin.id),
+                                })),
+                            }
+                        })
+
+                        // ۲. ✨ بلور فوری — همون آینه‌ی handleUnreport ولی برعکس
+                        queryClient.setQueriesData<PinDTO[]>(
+                            { queryKey: ['related-pins'] },
+                            (old) => old?.map((p) => (p.id === pin.id ? { ...p, isReportedByMe: true } : p))
+                        )
+                        queryClient.setQueriesData<{ pins: PinDTO[] }>(
+                            { queryKey: ['user'] },
+                            (old) => (old
+                                ? { ...old, pins: old.pins.map((p) => (p.id === pin.id ? { ...p, isReportedByMe: true } : p)) }
+                                : old)
+                        )
+
+                        queryClient.invalidateQueries({ queryKey: ['related-pins'] })
+                        queryClient.invalidateQueries({ queryKey: ['user', pin.userId] })
+
+                        // ۴. فیدبک
+                        setShowReportToast(true)
+                        setTimeout(() => setShowReportToast(false), 2500)
+                    }}
+                />
+            )}
+
+            {showReportToast && (
+                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] bg-white shadow-2xl border border-gray-100 rounded-2xl px-6 py-4 flex items-center gap-3 animate-[fadeInUp_0.3s_ease-out]">
+                    <FiCheckCircle className="text-green-500 text-xl" />
+                    <span className="text-gray-800 font-medium text-xs">گزارش شما ثبت شد — این پین دیگر برای شما نمایش داده نمی‌شود</span>
                 </div>
             )}
         </>

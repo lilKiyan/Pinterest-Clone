@@ -10,15 +10,21 @@ export async function GET(request: Request) {
     try {
         const user = await getCurrentUser()
 
-        const cacheControl = user ? 'private, no-store' : 'public, max-age=60, state-while-revalidate=120'
+        const cacheControl = user ? 'private, no-store' : 'public, max-age=60, stale-while-revalidate=120'
 
         const { searchParams } = new URL(request.url)
         const page = Number(searchParams.get('page') || '1')
         const limit = Number(searchParams.get('limit') || '12')
         const skip = (page - 1) * limit
 
+
+        const reportedFilter = user
+            ? { reports: { none: { reporterId: user.id } } }
+            : {}
+
         const [pins, totalCount] = await Promise.all([
             prisma.pin.findMany({
+                where: reportedFilter,      
                 orderBy: { createdAt: 'desc' },
                 skip,
                 take: limit,
@@ -26,9 +32,12 @@ export async function GET(request: Request) {
                     saves: {
                         include: { board: true },
                     },
+
                 },
             }),
-            prisma.pin.count(),
+            prisma.pin.count({
+                where: reportedFilter,       
+            }),
         ])
 
         const pinsWithMeta = pins.map((pin) => {
@@ -46,7 +55,7 @@ export async function GET(request: Request) {
                 createdAt: pin.createdAt,
                 updatedAt: pin.updatedAt,
                 userId: pin.userId,
-                isOwner: false,   // ✅ اصلاح شد
+                isOwner: false,  
                 isSavedByMe: userSaves.length > 0,
                 savedBoards: userSaves.map((s) => ({
                     boardId: s.boardId,
@@ -64,7 +73,7 @@ export async function GET(request: Request) {
                 }
             }
         )
-        
+
     } catch (error) {
         console.error('GET /api/pins error:', error)
         return NextResponse.json(

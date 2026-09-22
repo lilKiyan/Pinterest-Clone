@@ -11,7 +11,7 @@ export async function GET(
         const currentUser = await getCurrentUser()
 
         const cacheControl = currentUser
-            ? 'private, max-age=30, stale-while-revalidate=60'
+            ? 'private, no-store'
             : 'public, max-age=60, stale-while-revalidate=120'
 
         const user = await prisma.user.findUnique({
@@ -44,6 +44,9 @@ export async function GET(
                     saves: {
                         include: { board: true },
                     },
+                    reports: {
+                        select: { reporterId: true },
+                    },
                 },
             }),
         ])
@@ -63,18 +66,22 @@ export async function GET(
             const userSaves = currentUser
                 ? pin.saves.filter((s) => s.userId === currentUser.id)
                 : []
+
             return {
                 id: pin.id,
                 title: pin.title,
                 description: pin.description,
                 imageUrl: pin.imageUrl,
-                imageWidth: pin.imageWidth,      // ✅ اضافه شد
+                imageWidth: pin.imageWidth,
                 imageHeight: pin.imageHeight,
                 createdAt: pin.createdAt,
                 updatedAt: pin.updatedAt,
                 userId: pin.userId,
                 isOwner: currentUser ? pin.userId === currentUser.id : false,
                 isSavedByMe: userSaves.length > 0,
+                isReportedByMe: currentUser
+                    ? pin.reports.some((r) => r.reporterId === currentUser.id)
+                    : false,
                 savedBoards: userSaves.map((s) => ({
                     boardId: s.boardId,
                     boardName: s.board?.name || null,

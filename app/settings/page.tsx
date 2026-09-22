@@ -1,325 +1,490 @@
 "use client"
 
-import Link from 'next/link'
-import { useParams, useRouter } from 'next/navigation'
-import PinCard from '@/app/components/PinCard'
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '@/lib/authStore'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import type { CurrentUser } from '../types/user'
+import Spinner from '@/app/components/Spinner'
+import { FiUser, FiAtSign, FiMail, FiLock, FiCamera, FiSave, FiCheckCircle, FiAlertCircle, FiShield, FiTrash2, FiAlertTriangle } from 'react-icons/fi'
 
-import {
-    FiArrowRight,
-    FiAtSign,
-    FiImage,
-    FiGrid,
-    FiMessageCircle,
-    FiUserPlus,
-    FiCheck,
-    FiSettings,
-} from 'react-icons/fi'
+// ── تایپ خروجی API های ما ──
+type MeResponse = { user: CurrentUser }
+type UploadResponse = { imageUrl: string; width: number; height: number }
+type UpdateProfileResponse = { user: CurrentUser }
+type DeleteAccountResponse = { success: boolean; message: string }
 
-type UserProfile = {
-    id: string
-    name: string
-    username: string
-    avatar: string | null
-    bio: string | null
-    isFollowing: boolean
-    followersCount: number
-    followingCount: number
-}
-
-type ProfileResponse = {
-    user: UserProfile
-    pins: any[]
-}
-
-export default function UserProfilePage() {
-    const { id } = useParams<{ id: string }>()
+export default function SettingsPage() {
     const router = useRouter()
-    const { user: currentUser } = useAuthStore()
     const queryClient = useQueryClient()
+    const { user, setUser } = useAuthStore()
 
-    // ── Query: اطلاعات کاربر + پین‌ها ──
-    const {
-        data,
-        isLoading: loading,
-        isError,
-        error,
-    } = useQuery<ProfileResponse>({
-        queryKey: ['user', id],
-        queryFn: async () => {
-            const res = await fetch(`/api/users/${id}`)
-            if (!res.ok) throw new Error('کاربر یافت نشد')
-            return res.json()
-        },
-        enabled: !!id,
-        staleTime: 60 * 1000,
-    })
+    // ── State فرم ──
+    const [name, setName] = useState('')
+    const [username, setUsername] = useState('')
+    const [email, setEmail] = useState('')
+    const [bio, setBio] = useState('')
+    const [avatar, setAvatar] = useState('')
+    const [oldPassword, setOldPassword] = useState('')
+    const [newPassword, setNewPassword] = useState('')
 
-    const profileUser = data?.user
-    const pins = data?.pins ?? []
+    const [success, setSuccess] = useState('')
+    const [error, setError] = useState('')
 
-    // ── Mutation: فالو/آنفالو ──
-    const followMutation = useMutation({
-        mutationFn: async () => {
-            const res = await fetch(`/api/users/${id}/follow`, { method: 'POST' })
-            if (!res.ok) throw new Error('خطا در فالو')
-            return res.json()
-        },
-        onSuccess: (resData: { isFollowing: boolean; followersCount: number }) => {
-            queryClient.setQueryData<ProfileResponse>(['user', id], (old) => {
-                if (!old) return old
-                return {
-                    ...old,
-                    user: {
-                        ...old.user,
-                        isFollowing: resData.isFollowing,
-                        followersCount: resData.followersCount,
-                    },
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+    const [deleteConfirmText, setDeleteConfirmText] = useState('')
+
+    useEffect(() => {
+        if (user) {
+            setName(user.name || '')
+            setUsername(user.username || '')
+            setEmail(user.email || '')
+            setBio(user.bio || '')
+            setAvatar(user.avatar || '')
+            return
+        }
+
+        fetch('/api/auth/me')
+            .then(res => res.ok ? res.json() as Promise<MeResponse> : null)
+            .then(data => {
+                if (data?.user) {
+                    setUser(data.user)
                 }
             })
-        },
-    })
+            .catch(console.error)
+    }, [user, setUser])
 
-    // ── Mutation: شروع گفتگو ──
-    const messageMutation = useMutation({
-        mutationFn: async () => {
-            const res = await fetch('/api/conversations', {
+    const uploadAvatarMutation = useMutation({
+        mutationFn: async (file: File): Promise<UploadResponse> => {
+            const formData = new FormData()
+            formData.append('file', file)
+            const res = await fetch('/api/upload', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: profileUser!.id }),
+                body: formData,
             })
-            if (!res.ok) throw new Error('خطا در شروع گفتگو')
+            if (!res.ok) throw new Error('خطا در آپلود تصویر')
             return res.json()
         },
-        onSuccess: (resData) => {
-            if (resData?.conversation?.id) {
-                router.push(`/messages/${resData.conversation.id}`)
+        onSuccess: (data) => {
+            // ✨ data: UploadResponse — autocomplete کامل
+            setAvatar(data.imageUrl)
+        },
+        onError: (err: Error) => {
+            setError(err.message)
+        },
+    })
+
+    const updateProfileMutation = useMutation({
+        mutationFn: async (): Promise<UpdateProfileResponse> => {
+            const res = await fetch('/api/user', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name,
+                    username,
+                    email,
+                    bio,
+                    avatar,
+                    oldPassword: oldPassword || undefined,
+                    newPassword: newPassword || undefined,
+                }),
+            })
+
+            if (!res.ok) {
+                const data = await res.json()
+                throw new Error(data.error || 'خطا در ذخیره تغییرات')
             }
-        },
-        onError: (err) => {
-            console.error('خطا در شروع گفتگو:', err)
-        },
-    })
-
-    useQuery({
-        queryKey: ['user', id],
-        queryFn: async () => {
-            const res = await fetch(`/api/users/${id}`)
-            if (!res.ok) throw new Error('کاربر یافت نشد')
             return res.json()
         },
-        enabled: !!id,
-        staleTime: 60 * 1000,
-        retry: 2,           // ← ۲ بار تلاش مجدد
-        retryDelay: 2000,   // ← ۲ ثانیه فاصله بین تلاش‌ها
+        onSuccess: (data) => {
+            if (data.user) {
+                setUser(data.user)
+            }
+            setSuccess('پروفایل با موفقیت به‌روزرسانی شد')
+            setOldPassword('')
+            setNewPassword('')
+            setError('')
+
+            queryClient.invalidateQueries({ queryKey: ['me'] })
+            queryClient.invalidateQueries({ queryKey: ['user', data.user?.id] })
+
+            setTimeout(() => setSuccess(''), 3000)
+        },
+        onError: (err: Error) => {
+            setError(err.message)
+            setSuccess('')
+        },
     })
 
-    const handleFollow = () => {
-        if (!currentUser) {
-            router.push('/login')
-            return
-        }
-        followMutation.mutate()
+    const deleteAccountMutation = useMutation({
+        mutationFn: async (): Promise<DeleteAccountResponse> => {
+            const res = await fetch('/api/user', { method: 'DELETE' })
+            if (!res.ok) {
+                const data = await res.json()
+                throw new Error(data.error || 'خطا در حذف حساب')
+            }
+            return res.json()
+        },
+        onSuccess: () => {
+            setUser(null)
+            queryClient.clear()
+            router.push('/')
+            router.refresh()
+        },
+        onError: (err: Error) => {
+            setError(err.message)
+            setIsDeleteModalOpen(false)
+        },
+    })
+
+    const handleDeleteAccount = () => {
+        if (deleteConfirmText !== 'حذف') return
+        deleteAccountMutation.mutate()
     }
 
-    const handleMessage = () => {
-        if (!currentUser) {
-            router.push('/login')
+    const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault()
+        setError('')
+        setSuccess('')
+
+        if (!name.trim() || !username.trim() || !email.trim()) {
+            setError('نام، نام کاربری و ایمیل الزامی هستند')
             return
         }
-        if (!profileUser) return
-        messageMutation.mutate()
+
+        updateProfileMutation.mutate()
     }
 
-    if (loading) {
+    const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+        uploadAvatarMutation.mutate(file)
+    }
+
+    // ── حالت Loading ──
+    if (!user) {
         return (
-            <main dir="rtl" className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 via-white to-orange-50">
-                <div className="w-10 h-10 border-4 border-gray-200 border-t-red-500 rounded-full animate-spin" />
+            <main dir="rtl" className="min-h-screen flex justify-center items-center bg-gradient-to-br from-gray-50 via-white to-red-50/40">
+                <Spinner size="md" />
             </main>
         )
     }
 
-    if (isError || !profileUser) {
-        return (
-            <main dir="rtl" className="min-h-screen flex flex-col items-center justify-center gap-5 px-4 bg-gradient-to-br from-red-50 via-white to-orange-50">
-                <div className="w-20 h-20 rounded-3xl bg-white shadow-lg ring-1 ring-black/5 flex items-center justify-center">
-                    <FiAtSign className="w-9 h-9 text-red-300" />
-                </div>
-                <p className="text-gray-800 font-bold text-xl">
-                    {(error as Error)?.message || 'کاربر یافت نشد'}
-                </p>
-                <Link href="/" className="text-red-600 font-semibold hover:underline">
-                    بازگشت به خانه
-                </Link>
-            </main>
-        )
-    }
-
-    const isOwnProfile = currentUser?.id === profileUser.id
+    const isLoading = updateProfileMutation.isPending
+    const isUploading = uploadAvatarMutation.isPending
 
     return (
-        <main dir="rtl" className="min-h-screen bg-gradient-to-b from-gray-50 to-white pb-16">
-            {/* ═══════════ هیرو ═══════════ */}
-            <div className="relative">
-                <div className="h-28 sm:h-32 bg-gradient-to-l from-red-500/80 via-rose-500/70 to-orange-400/80 relative overflow-hidden">
-                    <div className="absolute -top-10 left-1/4 w-48 h-48 bg-white/15 rounded-full blur-2xl" />
-                    <div className="absolute -bottom-16 right-1/4 w-56 h-56 bg-white/10 rounded-full blur-3xl" />
-                </div>
+        <main dir="rtl" className="relative mb-15 md:mb-5 min-h-screen overflow-hidden bg-gradient-to-br from-gray-50 via-white to-red-50/40 px-4 py-8">
+            {/* عناصر تزئینی */}
+            <div className="absolute -top-20 -left-20 w-80 h-80 bg-red-100/60 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-orange-100/50 rounded-full blur-3xl pointer-events-none" />
 
-                <button
-                    onClick={() => router.back()}
-                    className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-white/20 hover:bg-white/35 backdrop-blur-md ring-1 ring-white/30 flex items-center justify-center text-white transition-all cursor-pointer group"
-                    title="بازگشت"
-                    aria-label="بازگشت"
-                >
-                    <FiArrowRight className="w-4 h-4" />
-                </button>
-
-                <div className="max-w-2xl mx-auto px-4">
-                    <div className="relative -mt-14 sm:-mt-16 w-fit mx-auto group">
-                        <div className="p-[3px] rounded-full bg-gradient-to-br from-red-500 via-rose-500 to-orange-400 shadow-xl shadow-red-200/50 transition-transform duration-300 group-hover:scale-[1.03]">
-                            <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden bg-white ring-4 ring-white flex items-center justify-center text-3xl sm:text-4xl font-black text-white bg-gradient-to-br from-red-500 to-orange-500">
-                                {profileUser.avatar ? (
-                                    <img
-                                        src={profileUser.avatar}
-                                        alt={profileUser.name}
-                                        className="w-full h-full object-cover"
-                                    />
-                                ) : (
-                                    <span className="leading-none">
-                                        {profileUser.username?.charAt(0).toUpperCase() || '؟'}
-                                    </span>
-                                )}
-                            </div>
-                        </div>
+            <div className="relative max-w-4xl mx-auto">
+                {/* ── هدر ── */}
+                <div className="flex items-center gap-4 mb-10">
+                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-red-500 to-rose-600 shadow-lg shadow-red-200 flex items-center justify-center">
+                        <FiUser className="w-6 h-6 text-white" />
                     </div>
-
-                    <div className="text-center mt-4">
-                        <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
-                            {profileUser.name}
+                    <div>
+                        <h1 className="text-2xl md:text-3xl font-extrabold bg-gradient-to-r from-red-600 to-rose-600 bg-clip-text text-transparent">
+                            تنظیمات پروفایل
                         </h1>
-                        <p className="flex items-center justify-center gap-1 text-sm text-gray-400 font-medium mt-1.5">
-                            <FiAtSign className="w-3.5 h-3.5" />
-                            {profileUser.username}
+                        <p className="text-gray-500 text-sm mt-1">
+                            اطلاعات شخصی و رمز عبور خود را مدیریت کنید
                         </p>
-
-                        {profileUser.bio && (
-                            <p className="text-[15px] text-gray-600 leading-relaxed mt-3 max-w-md mx-auto">
-                                {profileUser.bio}
-                            </p>
-                        )}
-                    </div>
-
-                    <div className="mt-6 flex items-center justify-center gap-5 sm:gap-7">
-                        <div className="group/stat flex flex-col items-center gap-1 cursor-default">
-                            <div className="flex items-center gap-1.5">
-                                <FiGrid className="w-3.5 h-3.5 text-red-400/50 transition-all duration-300 group-hover/stat:text-red-500 group-hover/stat:scale-110" />
-                                <span className="text-lg sm:text-xl font-black tabular-nums leading-none bg-gradient-to-br from-red-500 to-orange-400 bg-clip-text text-transparent">
-                                    {pins.length}
-                                </span>
-                            </div>
-                            <span className="text-[11px] text-gray-400 font-semibold">پین</span>
-                            <span className="h-0.5 w-0 rounded-full bg-gradient-to-l from-red-500 to-orange-400 opacity-0 group-hover/stat:opacity-100 group-hover/stat:w-full transition-all duration-300" />
-                        </div>
-
-                        <span className="w-1 h-1 rounded-full bg-gray-200" />
-
-                        <div className="group/stat flex flex-col items-center gap-1 cursor-default">
-                            <span className="text-lg sm:text-xl font-black tabular-nums leading-none bg-gradient-to-br from-fuchsia-500 to-purple-400 bg-clip-text text-transparent">
-                                {profileUser.followersCount}
-                            </span>
-                            <span className="text-[11px] text-gray-400 font-semibold">دنبال‌کننده</span>
-                            <span className="h-0.5 w-0 rounded-full bg-gradient-to-l from-fuchsia-500 to-purple-400 opacity-0 group-hover/stat:opacity-100 group-hover/stat:w-full transition-all duration-300" />
-                        </div>
-
-                        <span className="w-1 h-1 rounded-full bg-gray-200" />
-
-                        <div className="group/stat flex flex-col items-center gap-1 cursor-default">
-                            <span className="text-lg sm:text-xl font-black tabular-nums leading-none bg-gradient-to-br from-blue-500 to-cyan-400 bg-clip-text text-transparent">
-                                {profileUser.followingCount}
-                            </span>
-                            <span className="text-[11px] text-gray-400 font-semibold">دنبال‌شونده</span>
-                            <span className="h-0.5 w-0 rounded-full bg-gradient-to-l from-blue-500 to-cyan-400 opacity-0 group-hover/stat:opacity-100 group-hover/stat:w-full transition-all duration-300" />
-                        </div>
-                    </div>
-
-                    {/* دکمه‌های اکشن */}
-                    <div className="mt-6 flex justify-center">
-                        {isOwnProfile ? (
-                            <Link
-                                href="/settings"
-                                className="inline-flex items-center gap-2 text-sm font-bold text-gray-700 bg-white ring-1 ring-gray-200 hover:ring-gray-300 hover:bg-gray-50 px-6 py-2.5 rounded-full transition-all no-underline shadow-sm"
-                            >
-                                <FiSettings className="w-4 h-4 text-gray-400" />
-                                ویرایش پروفایل
-                            </Link>
-                        ) : (
-                            <div className="flex items-center gap-2">
-                                <button
-                                    onClick={handleFollow}
-                                    disabled={followMutation.isPending}
-                                    className={`inline-flex items-center gap-2 text-sm font-bold px-7 py-2.5 rounded-full transition-all cursor-pointer active:scale-95 ${profileUser.isFollowing
-                                        ? 'text-gray-700 bg-white ring-1 ring-gray-300 hover:ring-gray-400 shadow-sm'
-                                        : 'text-white bg-gray-900 hover:bg-black shadow-lg shadow-gray-300/60 hover:-translate-y-0.5'
-                                        } ${followMutation.isPending ? 'opacity-60 cursor-not-allowed' : ''}`}
-                                >
-                                    {followMutation.isPending ? (
-                                        <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin opacity-70" />
-                                    ) : profileUser.isFollowing ? (
-                                        <FiCheck className="w-4 h-4" />
-                                    ) : (
-                                        <FiUserPlus className="w-4 h-4" />
-                                    )}
-                                    {profileUser.isFollowing ? 'دنبال می‌کنید' : 'دنبال کردن'}
-                                </button>
-
-                                <button
-                                    onClick={handleMessage}
-                                    disabled={messageMutation.isPending}
-                                    className={`inline-flex items-center gap-2 text-sm font-bold px-6 py-2.5 rounded-full text-gray-700 bg-white ring-1 ring-gray-300 hover:ring-gray-400 hover:bg-gray-50 transition-all cursor-pointer active:scale-95 shadow-sm ${messageMutation.isPending ? 'opacity-60 cursor-not-allowed' : ''}`}
-                                >
-                                    {messageMutation.isPending ? (
-                                        <span className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
-                                    ) : (
-                                        <FiMessageCircle className="w-4 h-4 text-gray-400" />
-                                    )}
-                                    پیام
-                                </button>
-                            </div>
-                        )}
                     </div>
                 </div>
-            </div>
 
-            {/* ═══════════ پین‌های کاربر ═══════════ */}
-            <div className="max-w-[1400px] mx-auto px-4 sm:px-8 mt-12">
-                <div className="flex items-center gap-3 mb-6">
-                    <h2 className="flex items-center gap-2 font-bold text-gray-900 text-sm shrink-0">
-                        <span className="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center">
-                            <FiImage className="w-3.5 h-3.5 text-red-500" />
-                        </span>
-                        پین‌های {profileUser.name}
-                    </h2>
-                    <div className="flex-1 h-px bg-gray-100" />
-                </div>
-
-                {pins.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-16 text-center">
-                        <div className="w-16 h-16 rounded-3xl bg-gradient-to-br from-gray-50 to-gray-100 ring-1 ring-gray-100 flex items-center justify-center mb-4 rotate-3">
-                            <FiImage className="w-7 h-7 text-gray-300" />
-                        </div>
-                        <p className="text-gray-600 text-sm font-bold">این کاربر هنوز پینی نساخته است</p>
-                        <p className="text-gray-400 text-xs mt-1">به‌زودی شاید ایده‌های جدیدی اضافه کنه ✨</p>
-                    </div>
-                ) : (
-                    <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4 space-y-4">
-                        {pins.map((pin: any) => (
-                            <PinCard key={pin.id} pin={pin} />
-                        ))}
+                {/* ── پیام‌ها ── */}
+                {success && (
+                    <div className="mb-6 flex items-center gap-3 bg-green-50/90 backdrop-blur-sm border border-green-200 text-green-700 px-5 py-4 rounded-2xl shadow-sm animate-[fadeInUp_0.3s_ease-out]">
+                        <FiCheckCircle className="w-5 h-5 shrink-0" />
+                        <span className="font-medium">{success}</span>
                     </div>
                 )}
+                {error && (
+                    <div className="mb-6 flex items-center gap-3 bg-red-50/90 backdrop-blur-sm border border-red-200 text-red-600 px-5 py-4 rounded-2xl shadow-sm animate-[fadeInUp_0.3s_ease-out]">
+                        <FiAlertCircle className="w-5 h-5 shrink-0" />
+                        <span className="font-medium">{error}</span>
+                    </div>
+                )}
+
+                <form onSubmit={handleSubmit} className="space-y-6">
+                    {/* ═══ کارت اطلاعات شخصی ═══ */}
+                    <div className="relative bg-white/90 backdrop-blur-md rounded-3xl shadow-xl shadow-gray-200/50 ring-1 ring-black/5 overflow-hidden transition-all duration-300 hover:shadow-2xl hover:shadow-red-100/30">
+                        <div className="h-1.5 bg-gradient-to-r from-red-500 via-rose-500 to-orange-400" />
+
+                        <div className="p-6 md:p-8">
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center">
+                                    <FiUser className="w-5 h-5 text-red-600" />
+                                </div>
+                                <h2 className="text-lg font-bold text-gray-900">اطلاعات شخصی</h2>
+                            </div>
+
+                            {/* آواتار */}
+                            <div className="flex flex-col sm:flex-row items-center gap-5 mb-8">
+                                <div className="relative group">
+                                    <div className="w-24 h-24 rounded-full overflow-hidden bg-gradient-to-br from-red-100 to-orange-100 ring-4 ring-white shadow-lg flex items-center justify-center text-3xl font-black text-red-600">
+                                        {avatar ? (
+                                            <img src={avatar} alt="avatar" className="w-full h-full object-cover" />
+                                        ) : (
+                                            user.username?.charAt(0).toUpperCase()
+                                        )}
+                                    </div>
+                                    <label className={`absolute -bottom-1 -right-1 w-9 h-9 bg-gradient-to-br from-red-500 to-rose-600 rounded-full flex items-center justify-center text-white cursor-pointer shadow-lg hover:scale-110 active:scale-95 transition-all duration-200 ${isUploading ? 'opacity-60 cursor-not-allowed' : ''}`}>
+                                        {isUploading ? (
+                                            <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                                        ) : (
+                                            <FiCamera className="w-4 h-4" />
+                                        )}
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={handleAvatarUpload}
+                                            disabled={isUploading}
+                                            className="hidden"
+                                        />
+                                    </label>
+                                </div>
+                                <div className="text-center sm:text-right">
+                                    <p className="font-semibold text-gray-900">تصویر پروفایل</p>
+                                    <p className="text-sm text-gray-500 mt-1">
+                                        برای تغییر، روی دکمه‌ی دوربین کلیک کنید
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* فیلدهای فرم */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">نام کامل</label>
+                                    <div className="relative group">
+                                        <FiUser className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 transition-colors group-focus-within:text-red-500" />
+                                        <input
+                                            type="text"
+                                            value={name}
+                                            onChange={(e) => setName(e.target.value)}
+                                            className="w-full border-2 md:placeholder:text-md placeholder:text-sm border-gray-200 rounded-xl pr-10 pl-4 py-3 text-gray-900 placeholder-gray-400 bg-white/80 focus:outline-none focus:border-red-400 focus:ring-4 focus:ring-red-100/50 transition-all duration-200"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">نام کاربری</label>
+                                    <div className="relative group">
+                                        <FiAtSign className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 transition-colors group-focus-within:text-red-500" />
+                                        <input
+                                            type="text"
+                                            value={username}
+                                            onChange={(e) => setUsername(e.target.value)}
+                                            dir="ltr"
+                                            className="w-full border-2 md:placeholder:text-md placeholder:text-sm border-gray-200 rounded-xl pr-10 pl-4 py-3 text-gray-900 placeholder-gray-400 bg-white/80 focus:outline-none focus:border-red-400 focus:ring-4 focus:ring-red-100/50 transition-all duration-200"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">ایمیل</label>
+                                    <div className="relative group">
+                                        <FiMail className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 transition-colors group-focus-within:text-red-500" />
+                                        <input
+                                            type="email"
+                                            value={email}
+                                            onChange={(e) => setEmail(e.target.value)}
+                                            dir="ltr"
+                                            className="w-full border-2 md:placeholder:text-md placeholder:text-sm border-gray-200 rounded-xl pr-10 pl-4 py-3 text-gray-900 placeholder-gray-400 bg-white/80 focus:outline-none focus:border-red-400 focus:ring-4 focus:ring-red-100/50 transition-all duration-200"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">بیوگرافی</label>
+                                    <input
+                                        type="text"
+                                        value={bio}
+                                        onChange={(e) => setBio(e.target.value)}
+                                        placeholder="چند کلمه درباره شما"
+                                        className="w-full border-2 md:placeholder:text-md placeholder:text-sm border-gray-200 rounded-xl px-4 py-3 text-gray-900 placeholder-gray-400 bg-white/80 focus:outline-none focus:border-red-400 focus:ring-4 focus:ring-red-100/50 transition-all duration-200"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* ═══ کارت تغییر رمز ═══ */}
+                    <div className="relative bg-white/90 backdrop-blur-md rounded-3xl shadow-xl shadow-gray-200/50 ring-1 ring-black/5 overflow-hidden transition-all duration-300 hover:shadow-2xl hover:shadow-blue-100/30">
+                        <div className="h-1.5 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500" />
+
+                        <div className="p-6 md:p-8">
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
+                                    <FiShield className="w-5 h-5 text-blue-600" />
+                                </div>
+                                <h2 className="text-lg font-bold text-gray-900">تغییر رمز عبور</h2>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">رمز عبور فعلی</label>
+                                    <div className="relative group">
+                                        <FiLock className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 transition-colors group-focus-within:text-blue-500" />
+                                        <input
+                                            type="password"
+                                            value={oldPassword}
+                                            onChange={(e) => setOldPassword(e.target.value)}
+                                            dir="ltr"
+                                            placeholder="••••••••"
+                                            className="w-full border-2 md:placeholder:text-md placeholder:text-sm border-gray-200 rounded-xl pr-10 pl-4 py-3 text-gray-900 placeholder-gray-400 bg-white/80 focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100/50 transition-all duration-200"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">رمز عبور جدید</label>
+                                    <div className="relative group">
+                                        <FiLock className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 transition-colors group-focus-within:text-blue-500" />
+                                        <input
+                                            type="password"
+                                            value={newPassword}
+                                            onChange={(e) => setNewPassword(e.target.value)}
+                                            dir="ltr"
+                                            placeholder="••••••••"
+                                            className="w-full border-2 md:placeholder:text-md placeholder:text-sm border-gray-200 rounded-xl pr-10 pl-4 py-3 text-gray-900 placeholder-gray-400 bg-white/80 focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100/50 transition-all duration-200"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <p className="text-xs text-gray-400 mt-4">
+                                اگر نمی‌خواهید رمز را تغییر دهید، این دو فیلد را خالی بگذارید
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* ═══ دکمه ذخیره ═══ */}
+                    <button
+                        type="submit"
+                        disabled={isLoading}
+                        className="w-full text-sm md:text-md bg-gradient-to-r from-red-600 to-rose-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-red-200 hover:shadow-xl hover:shadow-red-300/50 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99] transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0 flex items-center justify-center gap-2"
+                    >
+                        {isLoading ? (
+                            <>
+                                <span className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                                در حال ذخیره...
+                            </>
+                        ) : (
+                            <>
+                                <FiSave className="w-5 h-5" />
+                                ذخیره تغییرات
+                            </>
+                        )}
+                    </button>
+
+                    {/* ═══ بخش Danger Zone: حذف اکانت ═══ */}
+                    <div className="relative bg-red-50/40 backdrop-blur-md rounded-3xl ring-1 ring-red-200/60 overflow-hidden mt-8">
+                        <div className="h-1.5 bg-gradient-to-r from-red-600 via-red-500 to-orange-500" />
+
+                        <div className="p-6 md:p-8">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center">
+                                    <FiAlertTriangle className="w-5 h-5 text-red-600" />
+                                </div>
+                                <h2 className="text-lg font-bold text-red-800">منطقه‌ی خطر</h2>
+                            </div>
+
+                            <p className="text-sm text-red-700/80 leading-relaxed mb-5">
+                                با حذف حساب کاربری، تمام اطلاعات شما شامل پین‌ها، بردها، سیوها، لایک‌ها، کامنت‌ها،
+                                فالوها و پیام‌ها <span className="font-bold">برای همیشه</span> حذف می‌شوند.
+                                این عملیات قابل بازگشت نیست.
+                            </p>
+
+                            <button
+                                type="button"
+                                onClick={() => setIsDeleteModalOpen(true)}
+                                className="inline-flex text-sm md:text-md items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold px-6 py-3 rounded-xl shadow-lg shadow-red-200 hover:shadow-xl hover:shadow-red-300/50 transition-all duration-200 cursor-pointer active:scale-95"
+                            >
+                                <FiTrash2 className="w-4 h-4" />
+                                حذف حساب کاربری
+                            </button>
+                        </div>
+                    </div>
+                </form>
             </div>
+
+            {/* ═══ مودال تأیید حذف اکانت ═══ */}
+            {isDeleteModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-[fadeInUp_0.2s_ease-out]">
+                    <div className="relative bg-white rounded-3xl shadow-2xl ring-1 ring-black/5 w-full max-w-md p-6 animate-[fadeInUp_0.3s_ease-out]">
+                        <div className="w-16 h-16 mx-auto mb-4 bg-red-50 rounded-2xl flex items-center justify-center">
+                            <FiAlertTriangle className="w-8 h-8 text-red-600" />
+                        </div>
+
+                        <h3 className="text-xl font-bold text-gray-900 text-center mb-2">
+                            حذف حساب کاربری
+                        </h3>
+
+                        <p className="text-sm text-gray-500 text-center leading-relaxed mb-5">
+                            این عملیات قابل بازگشت نیست. برای تأیید، کلمه‌ی
+                            <span className="inline-block mx-1 px-2 py-0.5 bg-red-50 text-red-600 font-bold rounded-md">
+                                حذف
+                            </span>
+                            را تایپ کنید.
+                        </p>
+
+                        <input
+                            type="text"
+                            value={deleteConfirmText}
+                            onChange={(e) => setDeleteConfirmText(e.target.value)}
+                            placeholder="حذف"
+                            className="w-full border-2 md:placeholder:text-md placeholder:text-sm border-gray-200 rounded-xl px-4 py-3 text-center text-gray-900 placeholder-gray-300 focus:outline-none focus:border-red-400 focus:ring-4 focus:ring-red-100/50 transition-all mb-5"
+                            dir="rtl"
+                            autoFocus
+                        />
+
+                        <div className="flex gap-2.5">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setIsDeleteModalOpen(false)
+                                    setDeleteConfirmText('')
+                                }}
+                                className="flex-1 h-12 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-bold text-sm transition-colors cursor-pointer"
+                            >
+                                انصراف
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleDeleteAccount}
+                                disabled={deleteConfirmText !== 'حذف' || deleteAccountMutation.isPending}
+                                className="flex-1 h-12 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
+                            >
+                                {deleteAccountMutation.isPending ? (
+                                    <>
+                                        <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                                        در حال حذف...
+                                    </>
+                                ) : (
+                                    <>
+                                        <FiTrash2 className="w-4 h-4" />
+                                        حذف کن
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <style>{`
+                @keyframes fadeInUp {
+                    from { opacity: 0; transform: translateY(10px); }
+                    to   { opacity: 1; transform: translateY(0); }
+                }
+                @media (prefers-reduced-motion: reduce) {
+                    * { animation: none !important; }
+                }
+            `}</style>
         </main>
     )
 }

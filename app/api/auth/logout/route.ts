@@ -2,10 +2,22 @@ import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { COOKIE_NAME } from '@/lib/auth'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+export const fetchCache = 'force-no-store'
+
 export async function POST() {
-    // پاک کردن کوکی توکن
     const cookieStore = await cookies()
-    cookieStore.delete(COOKIE_NAME)
+
+    // ✅ استفاده از set با maxAge: 0 برای پاک کردن مطمئن‌تر
+    // (delete گاهی روی production با path/domain mismatch کار نمی‌کنه)
+    cookieStore.set(COOKIE_NAME, '', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 0,
+    })
 
     return NextResponse.json({ success: true })
 }

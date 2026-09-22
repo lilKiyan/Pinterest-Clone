@@ -26,6 +26,8 @@ model User {
   followers Follow[] @relation("follower")
   following Follow[] @relation("following")
 
+  reports    Report[] @relation("reporter")
+
   conversationParticipants ConversationParticipant[]
   messages                 Message[]
 }
@@ -35,7 +37,7 @@ model Pin {
   title       String
   description String?
   imageUrl    String
-    imageWidth  Int?     // ✅ جدید
+    imageWidth  Int?    
   imageHeight Int?
   link        String?
   createdAt   DateTime @default(now())
@@ -50,6 +52,8 @@ model Pin {
   saves       Save[]
   likes       Like[]
   comments    Comment[]
+
+  reports    Report[]
 }
 
 model Like {
@@ -145,4 +149,19 @@ model Message {
   content        String
   createdAt      DateTime     @default(now())
   isRead         Boolean      @default(false)
+}
+
+model Report {
+  id          String   @id @default(cuid())
+  reason      String
+  description String?
+  status      String   @default("pending")  // pending | reviewed | resolved
+  createdAt   DateTime @default(now())
+
+  pinId      String
+  pin        Pin      @relation(fields: [pinId], references: [id])
+  reporterId String
+  reporter   User     @relation("reporter", fields: [reporterId], references: [id])
+
+  @@unique([reporterId, pinId])
 }

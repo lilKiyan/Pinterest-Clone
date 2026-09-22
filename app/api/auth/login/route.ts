@@ -4,6 +4,10 @@ import { comparePassword, signToken, COOKIE_NAME } from '@/lib/auth'
 import { cookies } from 'next/headers'
 import { normalizeEmail } from '@/lib/validations'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+export const fetchCache = 'force-no-store'
+
 export async function POST(request: Request) {
     try {
         const body = await request.json()
