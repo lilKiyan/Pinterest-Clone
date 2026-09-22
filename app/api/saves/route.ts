@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
+import { createNotification } from '@/lib/notifications'
 
 export async function POST(request: Request) {
     try {
@@ -65,6 +66,22 @@ export async function POST(request: Request) {
                 boardId,
             },
         })
+
+        // 🔔 نوتیف برای صاحب پین
+        const targetPin = await prisma.pin.findUnique({
+            where: { id: pinId },
+            select: { userId: true, title: true },
+        })
+
+        if (targetPin) {
+            await createNotification({
+                type: 'save',
+                recipientId: targetPin.userId,
+                actorId: user.id,
+                pinId: pinId,
+                pinTitle: targetPin.title,
+            })
+        }
 
         return NextResponse.json(newSave, { status: 201 })
     } catch (error) {

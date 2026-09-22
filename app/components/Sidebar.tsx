@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { FiHome, FiPlus, FiBell, FiMessageCircle, FiSettings, FiGrid } from 'react-icons/fi'
 import { useUnreadCount } from '@/lib/useUnreadCount'
+import { useNotificationsCount } from '@/lib/useNotificationsCount'
 
 const navItems = [
     { href: '/', icon: FiHome, label: 'خانه' },
@@ -23,7 +24,8 @@ const isPathActive = (pathname: string, href: string) => {
 
 const Sidebar = () => {
     const pathname = usePathname()
-    const unreadCount = useUnreadCount() // ✅
+    const unreadCount = useUnreadCount()
+    const notificationCount = useNotificationsCount()
 
     const activeIndex = navItems.findIndex((item) => isPathActive(pathname, item.href))
     const isSettingsActive = isPathActive(pathname, '/settings')
@@ -51,8 +53,9 @@ const Sidebar = () => {
                 {navItems.map((item) => {
                     const active = isPathActive(pathname, item.href)
                     const Icon = item.icon
-
-                    // ✅ بج فقط روی آیکون پیام‌ها و وقتی پیام نخوانده داریم
+                    // ✅ بج پیام‌ها
+                    const showMessageBadge = item.href === '/messages' && unreadCount > 0
+                    const showNotificationBadge = item.href === '/updates' && notificationCount > 0
                     const showBadge = item.href === '/messages' && unreadCount > 0
 
                     return (
@@ -61,18 +64,21 @@ const Sidebar = () => {
                             href={item.href}
                             className="group relative z-10 flex items-center justify-center w-12 h-12 rounded-xl transition-colors hover:bg-gray-100"
                         >
-                            {/* ✅ آیکون داخل span نسبی، تا بج بشه بهش چسبوند */}
                             <span className="relative flex">
-                                <Icon
-                                    className={`w-6 h-6 transition-all duration-200 ${active ? 'text-red-600 scale-105' : 'text-gray-700'
-                                        }`}
-                                />
+                                <Icon className={`w-6 h-6 transition-all duration-200 ${active ? 'text-red-600 scale-105' : 'text-gray-700'}`} />
 
-                                {/* ✅ بج پیام نخوانده — دقیقاً هماهنگ با MobileNav */}
-                                {showBadge && (
-                                    <span className="absolute top-0 -left-1 flex">
-                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-gradient-to-br from-red-500 to-rose-600 ring-2 ring-white shadow-sm"></span>
+                                {showMessageBadge && (
+                                    <span className="absolute -top-0.5 -left-1 flex">
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-gradient-to-br from-red-500 to-rose-600 ring-2 ring-white shadow-sm" />
+                                    </span>
+                                )}
+
+                                {showNotificationBadge && (
+                                    <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full
+            bg-gradient-to-br from-red-500 to-rose-600 ring-2 ring-white shadow-sm
+            flex items-center justify-center text-[9px] font-extrabold text-white tabular-nums">
+                                        {notificationCount > 9 ? '۹+' : notificationCount}
                                     </span>
                                 )}
                             </span>

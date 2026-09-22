@@ -663,7 +663,7 @@ export default function PinDetailPage() {
                         <div className="w-10 h-10 rounded-2xl bg-red-50 flex items-center justify-center">
                             <FiGrid className="w-5 h-5 text-red-600" />
                         </div>
-                        <h2 className="text-xl md:text-2xl font-extrabold text-gray-900">
+                        <h2 className="text-md md:text-2xl font-extrabold text-gray-900">
                             پین‌های بیشتر !
                         </h2>
                     </div>

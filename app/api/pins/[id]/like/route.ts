@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
+import { createNotification, removeNotification } from '@/lib/notifications'
 
 export async function POST(
     request: Request,
@@ -18,8 +19,11 @@ export async function POST(
 
         const { id } = await params
 
-        // بررسی وجود پین
-        const pin = await prisma.pin.findUnique({ where: { id } })
+        // بررسی وجود پین — فقط فیلدهای لازم (بهینه)
+        const pin = await prisma.pin.findUnique({
+            where: { id },
+            select: { userId: true, title: true },
+        })
         if (!pin) {
             return NextResponse.json(
                 { error: 'پین یافت نشد' },
@@ -43,6 +47,14 @@ export async function POST(
                 where: { id: existingLike.id },
             })
             isLiked = false
+
+            // 🔔 آنلایک → نوتیف نخونده حذف می‌شود
+            await removeNotification({
+                type: 'like',
+                recipientId: pin.userId,
+                actorId: user.id,
+                pinId: id,
+            })
         } else {
             // ثبت لایک
             await prisma.like.create({
@@ -52,6 +64,15 @@ export async function POST(
                 },
             })
             isLiked = true
+
+            // 🔔 لایک → نوتیف برای صاحب پین
+            await createNotification({
+                type: 'like',
+                recipientId: pin.userId,
+                actorId: user.id,
+                pinId: id,
+                pinTitle: pin.title,
+            })
         }
 
         const totalLikes = await prisma.like.count({

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
 import { validateCommentLength } from '@/lib/validations'
+import { createNotification } from '@/lib/notifications'
 
 // دریافت کامنت‌های یک پین
 export async function GET(
@@ -71,7 +72,10 @@ export async function POST(
         }
 
         // ۳. بررسی وجود پین
-        const pin = await prisma.pin.findUnique({ where: { id } })
+        const pin = await prisma.pin.findUnique({
+            where: { id },
+            select: { id: true, userId: true, title: true },
+        })
         if (!pin) {
             return NextResponse.json(
                 { error: 'پین یافت نشد' },
@@ -96,6 +100,14 @@ export async function POST(
                     },
                 },
             },
+        })
+
+        await createNotification({
+            type: 'comment',
+            recipientId: pin.userId,
+            actorId: user.id,
+            pinId: id,
+            pinTitle: pin.title,
         })
 
         // ۵. برگرداندن کامنت ساخته‌شده

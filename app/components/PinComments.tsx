@@ -259,7 +259,7 @@ export default function PinComments({ pinId, onRequireLogin }: PinCommentsProps)
                                 }
                             }}
                             placeholder="دیدگاه خود را بنویسید..."
-                            className={`w-full bg-gray-50 ring-1 rounded-full pr-4 pl-37 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 transition-all duration-200 ${isOverLimit
+                            className={`w-full bg-gray-50 ring-1 rounded-full pr-4 pl-28 md:pl-37 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 transition-all duration-200 ${isOverLimit
                                 ? 'ring-red-300 focus:ring-red-400'
                                 : 'ring-gray-200/70 focus:ring-red-300/60'
                                 }`}

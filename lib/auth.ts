@@ -34,6 +34,7 @@ export async function getCurrentUser() {
                 name: true,
                 avatar: true,
                 bio: true,
+                unreadNotifications: true,
             },
         })
 

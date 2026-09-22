@@ -23,13 +23,17 @@ model User {
   saves     Save[]
   likes     Like[]
   comments  Comment[]
-  followers Follow[] @relation("follower")
-  following Follow[] @relation("following")
+  followers Follow[]  @relation("follower")
+  following Follow[]  @relation("following")
 
-  reports    Report[] @relation("reporter")
+  reports Report[] @relation("reporter")
 
   conversationParticipants ConversationParticipant[]
   messages                 Message[]
+
+  unreadNotifications Int            @default(0)
+  notifications       Notification[]
+  sentNotifications   Notification[] @relation("notificationActor")
 }
 
 model Pin {
@@ -37,34 +41,36 @@ model Pin {
   title       String
   description String?
   imageUrl    String
-    imageWidth  Int?    
+  imageWidth  Int?
   imageHeight Int?
   link        String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
 
-  boardId     String?
-  board       Board?   @relation(fields: [boardId], references: [id])
+  boardId String?
+  board   Board?  @relation(fields: [boardId], references: [id])
 
-  saves       Save[]
-  likes       Like[]
-  comments    Comment[]
+  saves    Save[]
+  likes    Like[]
+  comments Comment[]
 
-  reports    Report[]
+  reports Report[]
+
+  notifications Notification[]
 }
 
 model Like {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
 
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
 
-  pinId     String
-  pin       Pin      @relation(fields: [pinId], references: [id])
+  pinId String
+  pin   Pin    @relation(fields: [pinId], references: [id])
 
   @@unique([userId, pinId])
 }
@@ -76,25 +82,25 @@ model Board {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
 
-  pins      Pin[]
-  saves     Save[]
+  pins  Pin[]
+  saves Save[]
 }
 
 model Save {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
 
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
 
-  pinId     String
-  pin       Pin      @relation(fields: [pinId], references: [id])
+  pinId String
+  pin   Pin    @relation(fields: [pinId], references: [id])
 
-  boardId   String?
-  board     Board?   @relation(fields: [boardId], references: [id])
+  boardId String?
+  board   Board?  @relation(fields: [boardId], references: [id])
 }
 
 model Comment {
@@ -102,11 +108,11 @@ model Comment {
   content   String
   createdAt DateTime @default(now())
 
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
 
-  pinId     String
-  pin       Pin      @relation(fields: [pinId], references: [id])
+  pinId String
+  pin   Pin    @relation(fields: [pinId], references: [id])
 }
 
 model Follow {
@@ -115,18 +121,18 @@ model Follow {
   followingId String
   createdAt   DateTime @default(now())
 
-  follower    User     @relation("follower", fields: [followerId], references: [id])
-  following   User     @relation("following", fields: [followingId], references: [id])
+  follower  User @relation("follower", fields: [followerId], references: [id])
+  following User @relation("following", fields: [followingId], references: [id])
 
   @@unique([followerId, followingId])
 }
 
 model Conversation {
-  id          String   @id @default(cuid())
+  id           String                    @id @default(cuid())
   participants ConversationParticipant[]
-  messages    Message[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  messages     Message[]
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
 }
 
 model ConversationParticipant {
@@ -155,13 +161,31 @@ model Report {
   id          String   @id @default(cuid())
   reason      String
   description String?
-  status      String   @default("pending")  // pending | reviewed | resolved
+  status      String   @default("pending") // pending | reviewed | resolved
   createdAt   DateTime @default(now())
 
   pinId      String
-  pin        Pin      @relation(fields: [pinId], references: [id])
+  pin        Pin    @relation(fields: [pinId], references: [id])
   reporterId String
-  reporter   User     @relation("reporter", fields: [reporterId], references: [id])
+  reporter   User   @relation("reporter", fields: [reporterId], references: [id])
 
   @@unique([reporterId, pinId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  type      String // like | comment | follow | save
+  message   String // متن آماده فارسی
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  userId  String // گیرنده
+  user    User    @relation(fields: [userId], references: [id])
+  actorId String // انجام‌دهنده‌ی اکشن
+  actor   User    @relation("notificationActor", fields: [actorId], references: [id])
+  pinId   String?
+  pin     Pin?    @relation(fields: [pinId], references: [id])
+
+  @@index([userId, isRead, createdAt(sort: Desc)])
+  @@index([actorId])
 }

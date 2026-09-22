@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
+import { createNotification, removeNotification } from '@/lib/notifications'
 
 export async function GET(
     request: Request,
@@ -81,6 +82,12 @@ export async function POST(
                 where: { id: existingFollow.id },
             })
             isFollowing = false
+
+            await removeNotification({
+                type: 'follow',
+                recipientId: id,
+                actorId: user.id,
+            })
         } else {
             await prisma.follow.create({
                 data: {
@@ -89,6 +96,12 @@ export async function POST(
                 },
             })
             isFollowing = true
+
+            await createNotification({
+                type: 'follow',
+                recipientId: id,
+                actorId: user.id,
+            })
         }
 
         const followersCount = await prisma.follow.count({

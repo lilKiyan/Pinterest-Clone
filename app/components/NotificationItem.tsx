@@ -3,13 +3,7 @@
 import Image from 'next/image'
 import { useState } from 'react'
 import type { UserMini } from '../types/user'
-import {
-    FiHeart,
-    FiMessageCircle,
-    FiUserPlus,
-    FiBookmark,
-    FiCheck,
-} from 'react-icons/fi'
+import { FiHeart, FiMessageCircle, FiUserPlus, FiBookmark, FiCheck, FiTrash2, FiArrowLeft } from 'react-icons/fi'
 
 const NOTIFICATION_STYLES = {
     like: { icon: FiHeart, color: 'text-red-500', bg: 'bg-red-50' },
@@ -36,6 +30,8 @@ type NotificationItemProps = {
     notification: NotificationDTO
     onMarkAsRead: (id: string) => void
     onDelete: (id: string) => void
+    isMarkingRead?: boolean
+    isDeleting?: boolean
 }
 
 export default function NotificationItem({

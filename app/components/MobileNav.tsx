@@ -10,10 +10,12 @@ import {
     FiSearch,
     FiMessageCircle,
 } from 'react-icons/fi'
+import { useNotificationsCount } from '@/lib/useNotificationsCount'
 
 const MobileNav = () => {
     const pathname = usePathname()
     const unreadCount = useUnreadCount()
+    const notificationCount = useNotificationsCount()
 
     // توی صفحات چت مخفی باشه
     if (pathname.startsWith('/messages/')) {
@@ -63,6 +65,7 @@ const MobileNav = () => {
                 >
                     {navItems.map((item) => {
                         const Icon = item.icon
+                        const showNotificationBadge = item.href === '/updates' && notificationCount > 0
                         const active =
                             item.href === '/'
                                 ? pathname === '/'
@@ -97,6 +100,13 @@ const MobileNav = () => {
                                         <span className="absolute -top-0.5 -left-1 flex">
                                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
                                             <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-gradient-to-br from-red-500 to-rose-600 ring-2 ring-white shadow-sm" />
+                                        </span>
+                                    )}
+                                    {showNotificationBadge && (
+                                        <span className="absolute -top-1.5 -left-1.5 min-w-[15px] h-[15px] px-1 rounded-full
+        bg-gradient-to-br from-red-500 to-rose-600 ring-2 ring-white shadow-sm
+        flex items-center justify-center text-[8px] font-extrabold text-white tabular-nums">
+                                            {notificationCount > 9 ? '۹+' : notificationCount}
                                         </span>
                                     )}
                                 </span>
