@@ -180,9 +180,13 @@ const PinCard = ({
         let downloadUrl = pin.imageUrl
 
         if (pin.imageUrl.includes('res.cloudinary.com')) {
+            const safeName = rawName
+                .replace(/\s+/g, '_')     
+                .replace(/[\/,?&#=%]/g, '')  
+
             downloadUrl = pin.imageUrl.replace(
                 '/upload/',
-                `/upload/fl_attachment:${encodeURIComponent(rawName)}/`
+                `/upload/fl_attachment:${encodeURIComponent(safeName)}/`
             )
         }
 

@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import { useState } from 'react'
-import type { UserMini } from '@/types/user'
+import type { UserMini } from '../types/user'
 import {
     FiHeart,
     FiMessageCircle,
