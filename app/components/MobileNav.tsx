@@ -7,7 +7,7 @@ import {
     FiHome,
     FiPlus,
     FiGrid,
-    FiSearch,
+    FiBell,
     FiMessageCircle,
 } from 'react-icons/fi'
 import { useNotificationsCount } from '@/lib/useNotificationsCount'
@@ -17,20 +17,18 @@ const MobileNav = () => {
     const unreadCount = useUnreadCount()
     const notificationCount = useNotificationsCount()
 
-    // توی صفحات چت مخفی باشه
     if (pathname.startsWith('/messages/')) {
         return null
     }
 
     const navItems = [
         { href: '/', icon: FiHome, label: 'خانه' },
-        { href: '/search', icon: FiSearch, label: 'جستجو' },
+        { href: '/updates', icon: FiBell, label: 'اعلان‌ها' },
         { href: '/myboards', icon: FiGrid, label: 'بردها' },
         { href: '/messages', icon: FiMessageCircle, label: 'پیام‌ها' },
     ]
 
     const isCreateActive = pathname === '/create'
-
     return (
         <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 px-4 pb-[calc(env(safe-area-inset-bottom,0px)+14px)] pt-2 pointer-events-none">
             <div className="flex items-center justify-center gap-2.5">
