@@ -17,9 +17,10 @@ type Conversation = {
         content: string
         createdAt: string
         senderId: string
+        pinId?: string | null
     } | null
     updatedAt: string
-    unreadCount: number;
+    unreadCount: number
 }
 
 const timeAgo = (date: string | Date) => {
@@ -52,7 +53,7 @@ export default function MessagesPage() {
     const { user } = useAuthStore()
 
     const { data: conversations = [], isLoading: loading, isError, error, refetch } = useQuery<Conversation[]>({
-        queryKey: ['conversations',user?.id],
+        queryKey: ['conversations', user?.id],
         queryFn: async () => {
             const res = await fetch('/api/conversations')
             if (!res.ok) throw new Error('خطا در دریافت گفتگوها')
@@ -188,13 +189,17 @@ export default function MessagesPage() {
                                         <p className="font-extrabold text-gray-900 truncate text-[15px] group-hover:text-red-700 transition-colors duration-200">
                                             {other?.name || 'کاربر'}
                                         </p>
-                                        <p className="text-sm text-gray-500 truncate mt-0.5 leading-relaxed">
+                                        <p className="text-xs md:text-sm text-gray-500 truncate mt-0.5 leading-relaxed">
                                             {conv.lastMessage ? (
                                                 <>
                                                     {conv.lastMessage.senderId === user.id && (
                                                         <span className="font-bold text-gray-400">شما: </span>
                                                     )}
-                                                    {conv.lastMessage.content}
+                                                    {conv.lastMessage.pinId
+                                                        ? (conv.lastMessage.senderId === user.id
+                                                            ? '📌 پینی را به اشتراک گذاشتید'
+                                                            : '📌 پینی برای شما ارسال کرد')
+                                                        : conv.lastMessage.content}
                                                 </>
                                             ) : (
                                                 <span className="italic text-gray-400">شروع گفتگو...</span>
@@ -205,8 +210,8 @@ export default function MessagesPage() {
                                         <span className="text-[11px] text-gray-400 font-semibold whitespace-nowrap tabular-nums">
                                             {timeAgo(conv.updatedAt)} پیش
                                         </span>
-                                        <span className="w-6 h-6 rounded-full bg-red-50 flex items-center justify-center opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300">
-                                            <FiArrowRight className="w-3.5 h-3.5 text-red-500" />
+                                        <span className="w-6 h-6 mr-10 rounded-full bg-red-50 flex items-center justify-center opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300">
+                                            <FiArrowLeft className="w-3.5 h-3.5 text-red-500" />
                                         </span>
                                     </div>
                                 </Link>

@@ -76,7 +76,7 @@ export default function NotificationItem({
 
             {/* متن */}
             <div className="flex-1 min-w-0">
-                <p className="text-sm text-gray-800">
+                <p className="text-xs md:text-sm text-gray-800">
                     <span className="font-bold">{notification.actor.name}</span>{' '}
                     {notification.message}
                 </p>

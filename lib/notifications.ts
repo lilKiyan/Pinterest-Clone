@@ -1,7 +1,7 @@
 import { prisma } from './prisma'
 
 // ✅ الگوی درس ۴ — تایپ از روی خود داده
-export const NOTIFICATION_TYPES = ['like', 'comment', 'follow', 'save'] as const
+export const NOTIFICATION_TYPES = ['like', 'comment', 'follow', 'save', 'message'] as const
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number]
 
 // ── قالب پیام‌ها — یک منبع حقیقت ──
@@ -10,6 +10,7 @@ const MESSAGES: Record<NotificationType, (pinTitle: string) => string> = {
     comment: (t) => `روی پین «${t}» دیدگاه گذاشت`,
     follow: () => `شما را دنبال کرد`,
     save: (t) => `پین «${t}» را در بردش ذخیره کرد`,
+    message: () => `پیامی برای شما فرستاد`,
 }
 
 // عنوان پین رو کوتاه کن که نوتیف تمیز بمونه

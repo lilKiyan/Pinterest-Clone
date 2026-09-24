@@ -9,6 +9,8 @@ import { IoSend } from 'react-icons/io5'
 import { FiArrowRight, FiMessageCircle, FiChevronDown, FiAlertCircle } from 'react-icons/fi'
 import { CONTENT_LIMITS } from '@/lib/validations'
 import Spinner from '@/app/components/Spinner'
+import type { SharedPinInfo } from '../../types/pin'
+import SharedPinCard from '@/app/components/SharedPinCard'
 
 type Message = {
     id: string
@@ -22,7 +24,10 @@ type Message = {
         avatar: string | null
     }
     isRead: boolean
+    pinId?: string | null          
+    pin?: SharedPinInfo | null  
 }
+
 
 type OtherUser = {
     id: string
@@ -263,7 +268,7 @@ export default function ChatPage() {
                 <div className="max-w-2xl mx-auto space-y-3">
                     {loading ? (
                         <div className="flex justify-center py-20">
-                            <Spinner size="md" className='mt-25'/>
+                            <Spinner size="md" className='mt-25' />
                         </div>
                     ) : isError ? (
                         <div className="flex flex-col items-center py-16 text-center">
@@ -295,6 +300,37 @@ export default function ChatPage() {
                                 index < messages.length - 1 &&
                                 messages[index + 1].senderId === message.senderId
 
+                            if (message.pin) {
+                                return (
+                                    <Fragment key={message.id}>
+                                        {message.id === firstUnreadId && (
+                                            <div className="flex items-center gap-3 my-4">
+                                                <span className="flex-1 h-px bg-gradient-to-l from-red-200 via-red-100 to-transparent" />
+                                                <span className="shrink-0 text-xs font-bold text-red-500 bg-red-50 ring-1 ring-red-100 px-3 py-1 rounded-full">
+                                                    پیام‌های جدید
+                                                </span>
+                                                <span className="flex-1 h-px bg-gradient-to-r from-red-200 via-red-100 to-transparent" />
+                                            </div>
+                                        )}
+
+                                        <div
+                                            className={`flex ${isMine ? 'justify-start' : 'justify-end'} animate-[chatIn_0.35s_ease-out_both]`}
+                                            style={{ animationDelay: `${Math.min(index * 25, 250)}ms` }}
+                                        >
+                                            {/* ستون کارت + متا — بدون هیچ bubble و بدون قرمز */}
+                                            <div className="flex flex-col gap-1 max-w-[80%] sm:max-w-[65%]">
+                                                <SharedPinCard pin={message.pin} />
+                                                <span className={`text-[10px] tabular-nums px-2 font-medium ${isMine ? 'text-red-400' : 'text-gray-400'}`}>
+                                                    {new Date(message.createdAt).toLocaleTimeString('fa-IR', {
+                                                        hour: '2-digit',
+                                                        minute: '2-digit',
+                                                    })}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </Fragment>
+                                )
+                            }
                             return (
                                 <Fragment key={message.id}>
                                     {message.id === firstUnreadId && (
@@ -319,7 +355,11 @@ export default function ChatPage() {
                                                 : 'bg-white text-gray-800 ring-1 ring-gray-200/90 shadow-gray-200/50 rounded-2xl rounded-bl-md'
                                                 }`}
                                         >
-                                            <p className="break-words whitespace-pre-wrap">{message.content}</p>
+                                            {message.pin ? (
+                                                <SharedPinCard pin={message.pin} />
+                                            ) : (
+                                                <p className="break-words whitespace-pre-wrap">{message.content}</p>
+                                            )}
                                             <span className={`text-[10px] mt-1 block tabular-nums ${isMine ? 'text-white/70' : 'text-gray-400'}`}>
                                                 {new Date(message.createdAt).toLocaleTimeString('fa-IR', {
                                                     hour: '2-digit',

@@ -35,6 +35,14 @@ export async function GET() {
                 messages: {
                     orderBy: { createdAt: 'desc' },
                     take: 1,
+                    select: {
+                        id: true,
+                        content: true,
+                        createdAt: true,
+                        isRead: true,
+                        senderId: true, 
+                        pinId: true,     
+                    },
                 },
             },
             orderBy: { updatedAt: 'desc' },

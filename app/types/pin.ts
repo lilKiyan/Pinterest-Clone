@@ -5,9 +5,7 @@ export type SavedBoardInfo = {
     boardName: string | null   // API می‌فرسته: s.board?.name || null
 }
 
-// پین استاندارد — شکل مشترک همه‌ی APIهایی که پین برمی‌گردونن
-// (لیست خانه، سرچ، سیوها، پروفایل کاربر، مرتبط‌ها)
-// ⚠️ فیلدهای اختیاری = بسته به منبع ممکنه فرستاده نشن (مثل پین‌های صفحه برد)
+
 export type PinDTO = {
     // هسته — همیشه هستن
     id: string
@@ -26,3 +24,6 @@ export type PinDTO = {
     isSavedByMe?: boolean
     savedBoards?: SavedBoardInfo[]
 }
+
+// پیش‌نمایش پینی که در چت share شده
+export type SharedPinInfo = Pick<PinDTO, 'id' | 'title' | 'imageUrl' | 'imageWidth' | 'imageHeight'>

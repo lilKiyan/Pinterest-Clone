@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
 import { validateMessageLength } from '@/lib/validations'
+import { createNotification } from '@/lib/notifications'
 
 // دریافت پیام‌های یک گفتگو
 export async function GET(
@@ -35,7 +36,6 @@ export async function GET(
                 { status: 403 }
             )
         }
-
         const messages = await prisma.message.findMany({
             where: { conversationId: id },
             orderBy: { createdAt: 'asc' },
@@ -46,6 +46,15 @@ export async function GET(
                         name: true,
                         username: true,
                         avatar: true,
+                    },
+                },
+                pin: {
+                    select: {
+                        id: true,
+                        title: true,
+                        imageUrl: true,
+                        imageWidth: true,
+                        imageHeight: true,
                     },
                 },
             },
@@ -128,6 +137,22 @@ export async function POST(
             where: { id },
             data: { updatedAt: new Date() },
         })
+
+        const recipient = await prisma.conversationParticipant.findFirst({
+            where: {
+                conversationId: id,
+                userId: { not: user.id },
+            },
+            select: { userId: true },
+        })
+
+        if (recipient) {
+            await createNotification({
+                type: 'message',
+                recipientId: recipient.userId,
+                actorId: user.id,
+            })
+        }
 
         return NextResponse.json({ message: newMessage }, { status: 201 })
     } catch (error) {

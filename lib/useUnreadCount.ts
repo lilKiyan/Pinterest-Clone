@@ -16,7 +16,7 @@ export function useUnreadCount() {
             return res.json()
         },
         enabled: !!userId,
-        refetchInterval: 15000, // هر ۱۵ ثانیه چک کن
+        refetchInterval: 2000, // هر 1 ثانیه چک کن
         staleTime: 10000,
     })
 

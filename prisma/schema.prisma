@@ -60,6 +60,8 @@ model Pin {
   reports Report[]
 
   notifications Notification[]
+
+  sharedInMessages Message[]
 }
 
 model Like {
@@ -155,6 +157,9 @@ model Message {
   content        String
   createdAt      DateTime     @default(now())
   isRead         Boolean      @default(false)
+
+  pinId String?
+  pin   Pin?    @relation(fields: [pinId], references: [id])
 }
 
 model Report {

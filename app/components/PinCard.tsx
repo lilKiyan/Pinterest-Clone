@@ -10,7 +10,9 @@ import type { Board } from './SaveToBoardDropdown'
 import type { OptionKey } from './PinOptionsMenu'
 import type { PinDTO } from '../types/pin'
 import type { Board as BoardDTO } from '../types/board'
+
 const ReportPinModal = dynamic(() => import('./ReportPinModal'), { ssr: false })
+const SharePinModal = dynamic(() => import('./SharePinModal'), { ssr: false })
 
 const SaveToBoardDropdown = dynamic(() => import('./SaveToBoardDropdown'), {
     ssr: false,
@@ -51,7 +53,6 @@ type SaveMutationVariables = {
     boardName?: string
 }
 
-// ── شکل کش صفحه‌ی اصلی (useInfiniteQuery با کلید ['pins']) ──
 type PinsPage = {
     pins: PinDTO[]
     hasMore: boolean
@@ -68,10 +69,8 @@ const PinCard = ({
 }: PinCardProps) => {
     const queryClient = useQueryClient()
 
-    // ── savedBoards از خود pin مشتق میشه (نه state جدا) ──
     const savedBoards = pin.savedBoards || []
 
-    // ── State های UI ──
     const [isEditModalOpen, setIsEditModalOpen] = useState(false)
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
     const [showDeletedToast, setShowDeletedToast] = useState(false)
@@ -79,9 +78,8 @@ const PinCard = ({
     const [isSaveMenuOpen, setIsSaveMenuOpen] = useState(false)
     const [isReportModalOpen, setIsReportModalOpen] = useState(false)
     const [isUnreporting, setIsUnreporting] = useState(false)
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false)
 
-
-    // ── Query: بردهای کاربر (مشترک بین همه‌ی PinCard ها) ──
     const { data: boardsRaw = [], isLoading: isLoadingBoards } = useQuery<BoardDTO[]>({
         queryKey: ['boards'],
         queryFn: async () => {
@@ -92,7 +90,6 @@ const PinCard = ({
         staleTime: 60 * 1000,
     })
 
-    // ✅ بدون any و بدون annotation — TS از BoardDTO[] استنباط می‌کنه
     const boards = boardsRaw.map((b) => ({
         id: b.id,
         name: b.name,
@@ -100,9 +97,7 @@ const PinCard = ({
         isTopChoice: false,
     }))
 
-    // ── Mutation: ساخت برد جدید ──
     const createBoardMutation = useMutation({
-        // از نتیجه استفاده نمی‌کنیم → حداقلی کافیه
         mutationFn: async (name: string): Promise<{ id: string; name: string }> => {
             const res = await fetch('/api/boards', {
                 method: 'POST',
@@ -121,9 +116,7 @@ const PinCard = ({
         createBoardMutation.mutate(name)
     }
 
-    // ── Mutation: ذخیره/حذف پین از برد ──
     const saveMutation = useMutation({
-        // نتیجه‌ی response استفاده نمیشه → unknown (صادقانه‌ترین تایپ)
         mutationFn: async ({ pinId, boardId, action }: SaveMutationVariables): Promise<unknown> => {
             const res = await fetch('/api/saves', {
                 method: action === 'save' ? 'POST' : 'DELETE',
@@ -137,7 +130,6 @@ const PinCard = ({
             return res.json()
         },
         onSuccess: (_, variables) => {
-            // ✅ آپدیت مستقیم cache برای UX فوری — با تایپ کامل، بدون any
             queryClient.setQueryData<PinsCache>(['pins'], (old) => {
                 if (!old) return old
                 return {
@@ -171,12 +163,10 @@ const PinCard = ({
                 }
             })
 
-            // اگه از برد حذف شد، به والد اطلاع بده
             if (variables.action === 'unsave' && onRemoveFromBoard) {
                 onRemoveFromBoard(variables.pinId)
             }
 
-            // invalidate کش‌های دیگه (نه pins چون دستی آپدیت شد)
             queryClient.invalidateQueries({ queryKey: ['saved-pins'] })
         },
     })
@@ -184,7 +174,6 @@ const PinCard = ({
     const handleDownload = async () => {
         const rawName = (pin.title || 'pin').trim() || 'pin'
 
-        // استخراج پسوند از URL
         const ext = pin.imageUrl.split('.').pop()?.split('?')[0] || 'jpg'
         const filename = `${rawName}.${ext}`
 
@@ -252,23 +241,19 @@ const PinCard = ({
         const url = `${window.location.origin}/pin/${pin.id}`
         const title = pin.title
 
-        // ۱. اگه Web Share API در دسترس بود (موبایل)
         if (navigator.share) {
             try {
                 await navigator.share({ title, url })
                 return
             } catch {
-                // کاربر انصراف داد
                 return
             }
         }
 
-        // ۲. Fallback: کپی به کلیپ‌بورد
         try {
             if (navigator.clipboard && window.isSecureContext) {
                 await navigator.clipboard.writeText(url)
             } else {
-                // روش قدیمی برای مرورگرهای قدیمی
                 const textarea = document.createElement('textarea')
                 textarea.value = url
                 textarea.style.position = 'fixed'
@@ -285,8 +270,6 @@ const PinCard = ({
         }
     }
 
-
-    // ── حالت «گزارش‌شده توسط من»: کارت بلور با بازگردانی ──
     if (pin.isReportedByMe) {
         return (
             <div className="group relative break-inside-avoid mb-4">
@@ -322,7 +305,6 @@ const PinCard = ({
     return (
         <>
             <div className="group relative break-inside-avoid mb-4">
-                {/* ── تصویر لینک‌دار ── */}
                 <Link href={`/pin/${pin.id}`} className="block no-underline">
                     <div
                         className="relative overflow-hidden rounded-[15px] bg-gray-100 ring-1 ring-black/5 group-hover:ring-black/10 transition-all"
@@ -339,7 +321,6 @@ const PinCard = ({
                     </div>
                 </Link>
 
-                {/* ── لایه hover ── */}
                 <div
                     className={`absolute inset-0 z-20 transition-opacity duration-200 pointer-events-none ${isSaveMenuOpen
                         ? 'opacity-100'
@@ -370,7 +351,6 @@ const PinCard = ({
                     </button>
                 </div>
 
-                {/* ── زیر تصویر: وضعیت ذخیره + منوی سه‌نقطه ── */}
                 <div className="mt-1.5 px-1 flex items-center justify-between gap-2">
                     <p className="flex items-center gap-1.5 text-xs text-gray-500 truncate min-w-0">
                         <FiFolder className="w-3 h-3 shrink-0 text-gray-400" />
@@ -387,6 +367,7 @@ const PinCard = ({
                         onDelete={() => setIsDeleteModalOpen(true)}
                         onDownload={handleDownload}
                         onShare={handleShare}
+                        onSend={() => setIsShareModalOpen(true)}
                         isOwner={pin.isOwner ?? false}
                         rotationDefault={optionsRotationDefault}
                         excludedOptions={menuExcluded}
@@ -395,7 +376,6 @@ const PinCard = ({
                 </div>
             </div>
 
-            {/* مودال ویرایش */}
             {isEditModalOpen && (
                 <EditPinModal
                     pinId={pin.id}
@@ -405,7 +385,6 @@ const PinCard = ({
                 />
             )}
 
-            {/* مودال حذف */}
             {isDeleteModalOpen && (
                 <DeletePinModal
                     pinId={pin.id}
@@ -418,7 +397,6 @@ const PinCard = ({
                 />
             )}
 
-            {/* توست حذف موفق */}
             {showDeletedToast && (
                 <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] bg-white shadow-2xl border border-gray-100 rounded-2xl px-6 py-4 flex items-center gap-3 animate-[fadeInUp_0.3s_ease-out]">
                     <FiCheckCircle className="text-green-500 text-xl" />
@@ -426,13 +404,11 @@ const PinCard = ({
                 </div>
             )}
 
-            {/* مودال گزارش */}
             {isReportModalOpen && (
                 <ReportPinModal
                     pinId={pin.id}
                     onClose={() => setIsReportModalOpen(false)}
                     onReported={() => {
-                        // ۱. فید خانه: پین کلاً حذف میشه
                         queryClient.setQueryData<PinsCache>(['pins'], (old) => {
                             if (!old) return old
                             return {
@@ -444,7 +420,6 @@ const PinCard = ({
                             }
                         })
 
-                        // ۲. ✨ بلور فوری — همون آینه‌ی handleUnreport ولی برعکس
                         queryClient.setQueriesData<PinDTO[]>(
                             { queryKey: ['related-pins'] },
                             (old) => old?.map((p) => (p.id === pin.id ? { ...p, isReportedByMe: true } : p))
@@ -459,7 +434,6 @@ const PinCard = ({
                         queryClient.invalidateQueries({ queryKey: ['related-pins'] })
                         queryClient.invalidateQueries({ queryKey: ['user', pin.userId] })
 
-                        // ۴. فیدبک
                         setShowReportToast(true)
                         setTimeout(() => setShowReportToast(false), 2500)
                     }}
@@ -471,6 +445,15 @@ const PinCard = ({
                     <FiCheckCircle className="text-green-500 text-xl" />
                     <span className="text-gray-800 font-medium text-xs">گزارش شما ثبت شد — این پین دیگر برای شما نمایش داده نمی‌شود</span>
                 </div>
+            )}
+
+            {isShareModalOpen && (
+                <SharePinModal
+                    pinId={pin.id}
+                    pinTitle={pin.title}
+                    pinImageUrl={pin.imageUrl}
+                    onClose={() => setIsShareModalOpen(false)}
+                />
             )}
         </>
     )

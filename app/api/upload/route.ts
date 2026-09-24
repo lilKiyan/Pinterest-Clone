@@ -9,6 +9,8 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 })
 
+const MAX_SERVER_SIZE = 5 * 1024 * 1024   // 5MB
+
 export async function POST(request: Request) {
   try {
     const formData = await request.formData()
@@ -21,6 +23,13 @@ export async function POST(request: Request) {
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
     if (!allowedTypes.includes(file.type)) {
       return NextResponse.json({ error: 'فقط تصویر مجاز است' }, { status: 400 })
+    }
+
+    if (file.size > MAX_SERVER_SIZE) {
+      return NextResponse.json(
+        { error: 'حجم تصویر بیش از ۵ مگابایت است' },
+        { status: 413 }   // Payload Too Large
+      )
     }
 
     const bytes = await file.arrayBuffer()

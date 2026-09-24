@@ -15,16 +15,15 @@ const RADIUS = 70
 const ROTATION_RIGHT_EDGE = -270
 const EDGE_THRESHOLD = 220
 
-
 const ANGLE_STEP = 35
 const BASE_ANGLE = 20
 
 const ALL_OPTIONS = [
     { key: 'download', icon: FiDownload, label: 'دانلود', ownerOnly: false },
-    { key: 'share', icon: FiShare2, label: 'اشتراک‌گذاری', ownerOnly: false },
     { key: 'flag', icon: FiFlag, label: 'گزارش', ownerOnly: false, notForOwner: true },
     { key: 'edit', icon: FiEdit2, label: 'ویرایش', ownerOnly: true },
     { key: 'delete', icon: FiTrash2, label: 'حذف', ownerOnly: true },
+    { key: 'send', icon: FiShare2, label: 'ارسال', ownerOnly: false },
 ] as const
 
 export type OptionKey = (typeof ALL_OPTIONS)[number]['key']
@@ -42,6 +41,9 @@ const getIconStyles = (label: string) => {
     if (label === 'اشتراک‌گذاری') {
         return 'text-indigo-600 hover:bg-gradient-to-br hover:from-indigo-100 hover:to-indigo-200 hover:shadow-[0_8px_25px_rgba(99,102,241,0.4)] hover:ring-2 hover:ring-indigo-300'
     }
+    if (label === 'ارسال') {
+        return 'text-emerald-600 hover:bg-gradient-to-br hover:from-emerald-100 hover:to-teal-200 hover:shadow-[0_8px_25px_rgba(16,185,129,0.4)] hover:ring-2 hover:ring-emerald-300'
+    }
     return 'text-gray-700 hover:bg-gradient-to-br hover:from-gray-100 hover:to-gray-200 hover:shadow-[0_8px_25px_rgba(0,0,0,0.2)] hover:ring-2 hover:ring-gray-300'
 }
 
@@ -50,7 +52,8 @@ type PinOptionsMenuProps = {
     onDelete?: () => void
     onDownload?: () => void
     onShare?: () => void
-    onReport?: () => void   // ✅ برای فیچر گزارش — فعلاً اختیاری، بعداً به مودال وصل میشه
+    onReport?: () => void
+    onSend?: () => void
     rotationDefault?: number
     isOwner?: boolean
     excludedOptions?: OptionKey[]
@@ -62,6 +65,7 @@ const PinOptionsMenu = ({
     onDownload,
     onShare,
     onReport,
+    onSend,
     isOwner = false,
     rotationDefault = -90,
     excludedOptions,
@@ -74,17 +78,16 @@ const PinOptionsMenu = ({
     const triggerRef = useRef<HTMLButtonElement>(null)
     const menuRef = useRef<HTMLDivElement>(null)
 
-    // ✅ فیلتر + توزیع داینامیک زاویه‌ها
     const filteredOptions = ALL_OPTIONS
         .filter((option) => {
-            if (option.ownerOnly && !isOwner) return false                                    // ✅ برگشت به خانه
-            if ('notForOwner' in option && option.notForOwner && isOwner) return false        // ✅ شرط جدید میمونه
+            if (option.ownerOnly && !isOwner) return false
+            if ('notForOwner' in option && option.notForOwner && isOwner) return false
             if (excludedOptions && excludedOptions.includes(option.key)) return false
             return true
         })
         .map((option, index) => ({
             ...option,
-            angle: BASE_ANGLE + index * ANGLE_STEP, // ✅ بدون گپ، فارغ از تعداد
+            angle: BASE_ANGLE + index * ANGLE_STEP,
         }))
 
     useEffect(() => setMounted(true), [])
@@ -105,6 +108,12 @@ const PinOptionsMenu = ({
     const closeMenu = () => {
         setVisibleOpen(false)
         setTimeout(() => setIsOpen(false), 300)
+    }
+
+    const closeMenuInstantly = () => {
+        setVisibleOpen(false)
+        setIsOpen(false)
+        setAnchor(null)
     }
 
     const handleToggle = () => {
@@ -146,12 +155,29 @@ const PinOptionsMenu = ({
     }
 
     const handleOptionClick = (key: OptionKey) => {
+        if (key === 'flag' && onReport) {
+            closeMenuInstantly()
+            onReport()
+            return
+        }
+        if (key === 'edit' && onEdit) {
+            closeMenuInstantly()
+            onEdit()
+            return
+        }
+        if (key === 'delete' && onDelete) {
+            closeMenuInstantly()
+            onDelete()
+            return
+        }
+        if (key === 'send' && onSend) {
+            closeMenuInstantly()
+            onSend()
+            return
+        }
         if (key === 'download' && onDownload) onDownload()
-        if (key === 'share' && onShare) onShare()
-        if (key === 'flag' && onReport) onReport()   // ✅ آماده برای مودال گزارش
-        if (key === 'edit' && onEdit) onEdit()
-        if (key === 'delete' && onDelete) onDelete()
-        setIsOpen(false)
+
+        closeMenu()
     }
 
     return (

@@ -4,8 +4,9 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '@/lib/authStore'
+import { compressImage } from '@/lib/imageCompress'
 import type { CurrentUser } from '../types/user'
-import Spinner from '@/app/components/Spinner'
+
 import { FiUser, FiAtSign, FiMail, FiLock, FiCamera, FiSave, FiCheckCircle, FiAlertCircle, FiShield, FiTrash2, FiAlertTriangle } from 'react-icons/fi'
 
 // ── تایپ خروجی API های ما ──
@@ -34,6 +35,9 @@ export default function SettingsPage() {
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
     const [deleteConfirmText, setDeleteConfirmText] = useState('')
 
+    // ✨ فشرده‌سازی آواتار در جریان است
+    const [isPreparing, setIsPreparing] = useState(false)
+
     useEffect(() => {
         if (user) {
             setName(user.name || '')
@@ -44,6 +48,7 @@ export default function SettingsPage() {
             return
         }
 
+        // اگه store خالیه، از سرور بگیر
         fetch('/api/auth/me')
             .then(res => res.ok ? res.json() as Promise<MeResponse> : null)
             .then(data => {
@@ -54,6 +59,7 @@ export default function SettingsPage() {
             .catch(console.error)
     }, [user, setUser])
 
+    // ── Mutation: آپلود آواتار ──
     const uploadAvatarMutation = useMutation({
         mutationFn: async (file: File): Promise<UploadResponse> => {
             const formData = new FormData()
@@ -74,6 +80,7 @@ export default function SettingsPage() {
         },
     })
 
+    // ── Mutation: ذخیره تغییرات پروفایل ──
     const updateProfileMutation = useMutation({
         mutationFn: async (): Promise<UpdateProfileResponse> => {
             const res = await fetch('/api/user', {
@@ -105,6 +112,7 @@ export default function SettingsPage() {
             setNewPassword('')
             setError('')
 
+            // ✅ invalidate کش کاربر
             queryClient.invalidateQueries({ queryKey: ['me'] })
             queryClient.invalidateQueries({ queryKey: ['user', data.user?.id] })
 
@@ -155,23 +163,40 @@ export default function SettingsPage() {
         updateProfileMutation.mutate()
     }
 
-    const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
         if (!file) return
-        uploadAvatarMutation.mutate(file)
+
+        e.target.value = ''
+
+        setIsPreparing(true)
+        setError('')
+
+        try {
+            const { file: compressed } = await compressImage(file)
+
+            uploadAvatarMutation.mutate(compressed)
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'خطا در پردازش تصویر')
+        } finally {
+            setIsPreparing(false)
+        }
     }
 
     // ── حالت Loading ──
     if (!user) {
         return (
             <main dir="rtl" className="min-h-screen flex justify-center items-center bg-gradient-to-br from-gray-50 via-white to-red-50/40">
-                <Spinner size="md" />
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-14 h-14 border-4 border-red-100 border-t-red-500 rounded-full animate-spin" />
+                    <p className="text-sm text-gray-400 font-medium">در حال بارگذاری...</p>
+                </div>
             </main>
         )
     }
 
     const isLoading = updateProfileMutation.isPending
-    const isUploading = uploadAvatarMutation.isPending
+    const isUploading = uploadAvatarMutation.isPending || isPreparing
 
     return (
         <main dir="rtl" className="relative mb-15 md:mb-5 min-h-screen overflow-hidden bg-gradient-to-br from-gray-50 via-white to-red-50/40 px-4 py-8">
@@ -232,6 +257,13 @@ export default function SettingsPage() {
                                             user.username?.charAt(0).toUpperCase()
                                         )}
                                     </div>
+
+                                    {isUploading && (
+                                        <div className="absolute inset-0 rounded-full bg-white/70 backdrop-blur-sm flex items-center justify-center">
+                                            <span className="w-6 h-6 border-[3px] border-red-100 border-t-red-500 rounded-full animate-spin" />
+                                        </div>
+                                    )}
+
                                     <label className={`absolute -bottom-1 -right-1 w-9 h-9 bg-gradient-to-br from-red-500 to-rose-600 rounded-full flex items-center justify-center text-white cursor-pointer shadow-lg hover:scale-110 active:scale-95 transition-all duration-200 ${isUploading ? 'opacity-60 cursor-not-allowed' : ''}`}>
                                         {isUploading ? (
                                             <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
@@ -250,7 +282,9 @@ export default function SettingsPage() {
                                 <div className="text-center sm:text-right">
                                     <p className="font-semibold text-gray-900">تصویر پروفایل</p>
                                     <p className="text-sm text-gray-500 mt-1">
-                                        برای تغییر، روی دکمه‌ی دوربین کلیک کنید
+                                        {isPreparing
+                                            ? 'در حال آماده‌سازی تصویر...'
+                                            : 'برای تغییر، روی دکمه‌ی دوربین کلیک کنید'}
                                     </p>
                                 </div>
                             </div>
