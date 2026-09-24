@@ -46,7 +46,9 @@ import {
     FiGrid,
     FiX,
     FiLogIn,
-    FiMessageCircle
+    FiMessageCircle,
+    FiDownload,
+    FiLoader,
 } from 'react-icons/fi'
 
 type SavedBoard = { boardId: string; boardName: string }
@@ -85,6 +87,7 @@ export default function PinDetailPage() {
     const [toast, setToast] = useState('')
 
     const [loginAction, setLoginAction] = useState<LoginAction>(null)
+    const [isDownloading, setIsDownloading] = useState(false)
 
     const ACTION_CONFIG: Record<Exclude<LoginAction, null>, {
         icon: any
@@ -303,6 +306,37 @@ export default function PinDetailPage() {
             queryClient.invalidateQueries({ queryKey: ['boards'] })
         },
     })
+
+    const handleDownload = async () => {
+        if (!pin || isDownloading) return
+        setIsDownloading(true)
+
+        const rawName = (pin.title || 'pin').trim() || 'pin'
+        const ext = pin.imageUrl.split('.').pop()?.split('?')[0] || 'jpg'
+        const filename = `${rawName}.${ext}`
+
+        try {
+            const res = await fetch(pin.imageUrl)
+            if (!res.ok) throw new Error('خطا در دریافت تصویر')
+
+            const blob = await res.blob()
+            const blobUrl = URL.createObjectURL(blob)
+
+            const link = document.createElement('a')
+            link.href = blobUrl
+            link.download = filename
+            document.body.appendChild(link)
+            link.click()
+            document.body.removeChild(link)
+
+            URL.revokeObjectURL(blobUrl)
+        } catch (error) {
+            console.error('خطا در دانلود:', error)
+            showToast('دانلود ناموفق بود')
+        } finally {
+            setIsDownloading(false)
+        }
+    }
 
     // ═══════════════ HANDLERS ═══════════════
 
@@ -560,6 +594,22 @@ export default function PinDetailPage() {
                                     >
                                         <FiShare2 className="w-[18px] h-[18px] text-gray-400 group-hover:text-blue-500" />
                                         <span className="hidden sm:inline text-gray-500 text-xs font-semibold">اشتراک‌گذاری</span>
+                                    </button>
+
+                                    <button
+                                        title="دانلود تصویر"
+                                        onClick={handleDownload}
+                                        disabled={isDownloading}
+                                        className="flex items-center gap-2 px-4 py-2.5 rounded-full font-bold text-sm bg-gray-50 text-gray-600 ring-1 ring-gray-200 hover:bg-red-50 hover:text-red-600 hover:ring-red-200 transition-all duration-300 cursor-pointer active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
+                                    >
+                                        {isDownloading ? (
+                                            <FiLoader className="w-[18px] h-[18px] text-red-500 animate-spin" />
+                                        ) : (
+                                            <FiDownload className="w-[18px] h-[18px] text-gray-400 group-hover:text-red-500" />
+                                        )}
+                                        <span className="hidden sm:inline text-gray-500 text-xs font-semibold">
+                                            {isDownloading ? 'در حال دانلود...' : 'دانلود'}
+                                        </span>
                                     </button>
 
                                     <span className="mr-auto hidden md:flex items-center gap-1.5 text-xs text-gray-400 font-medium">
