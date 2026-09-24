@@ -177,27 +177,24 @@ const PinCard = ({
         const ext = pin.imageUrl.split('.').pop()?.split('?')[0] || 'jpg'
         const filename = `${rawName}.${ext}`
 
-        let downloadUrl = pin.imageUrl
+        try {
+            const res = await fetch(pin.imageUrl)
+            if (!res.ok) throw new Error('خطا در دریافت تصویر')
 
-        if (pin.imageUrl.includes('res.cloudinary.com')) {
-            const safeName = rawName
-                .replace(/\s+/g, '_')     
-                .replace(/[\/,?&#=%]/g, '')  
+            const blob = await res.blob()
+            const blobUrl = URL.createObjectURL(blob)
 
-            downloadUrl = pin.imageUrl.replace(
-                '/upload/',
-                `/upload/fl_attachment:${encodeURIComponent(safeName)}/`
-            )
+            const link = document.createElement('a')
+            link.href = blobUrl         
+            link.download = filename     
+            document.body.appendChild(link)
+            link.click()
+            document.body.removeChild(link)
+
+            URL.revokeObjectURL(blobUrl)   
+        } catch (error) {
+            console.error('خطا در دانلود:', error)
         }
-
-        const link = document.createElement('a')
-        link.href = downloadUrl
-        link.download = filename
-        link.target = '_blank'
-        link.rel = 'noopener'
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
     }
 
     const handleUnreport = async () => {
