@@ -34,7 +34,6 @@ export default function Home() {
     staleTime: 0, // ✅ مهم برای Vercel: همیشه تازه باشه
   })
 
-  // ✅ استخراج پین‌ها از صفحات
   const pins = data?.pages.flatMap((page) => page.pins) ?? []
 
   // ── IntersectionObserver برای infinite scroll ──

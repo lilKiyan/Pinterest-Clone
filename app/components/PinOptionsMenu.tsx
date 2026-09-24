@@ -160,16 +160,19 @@ const PinOptionsMenu = ({
             onReport()
             return
         }
+
         if (key === 'edit' && onEdit) {
             closeMenuInstantly()
             onEdit()
             return
         }
+
         if (key === 'delete' && onDelete) {
             closeMenuInstantly()
             onDelete()
             return
         }
+
         if (key === 'send' && onSend) {
             closeMenuInstantly()
             onSend()
@@ -186,7 +189,7 @@ const PinOptionsMenu = ({
                 ref={triggerRef}
                 onClick={handleToggle}
                 aria-label="گزینه‌های پین"
-                className="group/three-dot relative z-20 px-1.5 py-1.5 rounded-full hover:bg-gray-100 transition-all duration-200 cursor-pointer"
+                className="group/three-dot relative px-1.5 py-1.5 rounded-full hover:bg-gray-100 transition-all duration-200 cursor-pointer"
             >
                 <FiMoreHorizontal
                     className={`w-5 h-5 text-gray-800 transition-transform duration-300 ${isOpen ? 'rotate-90' : 'group-hover/three-dot:scale-110'}`}

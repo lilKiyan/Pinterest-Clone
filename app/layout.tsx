@@ -16,7 +16,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fa" dir="rtl">
-      <body className="bg-white text-gray-900">
+      <body className="bg-white text-gray-900 selection:bg-rose-600 selection:text-white">
         <Providers>
           <div className="flex h-dvh overflow-hidden">
             <Sidebar />

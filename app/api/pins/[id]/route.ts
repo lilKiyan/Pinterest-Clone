@@ -21,7 +21,10 @@ export async function PATCH(
             )
         }
 
-        const pin = await prisma.pin.findUnique({ where: { id } })
+        const pin = await prisma.pin.findUnique({
+            where: { id },
+            select: { id: true, userId: true, title: true, description: true },
+        })
 
         if (!pin) {
             return NextResponse.json(
@@ -71,7 +74,10 @@ export async function DELETE(
             )
         }
 
-        const pin = await prisma.pin.findUnique({ where: { id } })
+        const pin = await prisma.pin.findUnique({
+            where: { id },
+            select: { id: true, userId: true },
+        })
 
         if (!pin) {
             return NextResponse.json(
@@ -87,13 +93,31 @@ export async function DELETE(
             )
         }
 
-        // حذف وابستگی‌ها
-        await prisma.save.deleteMany({ where: { pinId: id } })
-        await prisma.like.deleteMany({ where: { pinId: id } })
-        await prisma.comment.deleteMany({ where: { pinId: id } })
+        await prisma.$transaction(async (tx) => {
+            // گزارش‌های این پین (ریشه P2003 — Report_pinId_fkey)
+            await tx.report.deleteMany({
+                where: { pinId: id },
+            })
 
-        // حذف خود پین
-        await prisma.pin.delete({ where: { id } })
+            // نوتیف‌های اشاره‌کننده به این پین
+            await tx.notification.deleteMany({
+                where: { pinId: id },
+            })
+
+            // پیام‌های چتی که این پین را حمل می‌کنند → detach (تاریخچه چت حفظ شود)
+            await tx.message.updateMany({
+                where: { pinId: id },
+                data: { pinId: null },
+            })
+
+            // وابستگی‌های کلاسیک
+            await tx.save.deleteMany({ where: { pinId: id } })
+            await tx.like.deleteMany({ where: { pinId: id } })
+            await tx.comment.deleteMany({ where: { pinId: id } })
+
+            // خود پین
+            await tx.pin.delete({ where: { id } })
+        })
 
         return NextResponse.json({ message: 'پین حذف شد' })
     } catch (error) {

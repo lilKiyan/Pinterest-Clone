@@ -9,6 +9,7 @@ import dynamic from 'next/dynamic'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Spinner from '@/app/components/Spinner'
 
+const SharePinModal = dynamic(() => import('@/app/components/SharePinModal'), { ssr: false })
 const PinCard = dynamic(() => import('@/app/components/PinCard'), {
     ssr: false,
     loading: () => (
@@ -88,6 +89,7 @@ export default function PinDetailPage() {
 
     const [loginAction, setLoginAction] = useState<LoginAction>(null)
     const [isDownloading, setIsDownloading] = useState(false)
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false)
 
     const ACTION_CONFIG: Record<Exclude<LoginAction, null>, {
         icon: any
@@ -440,7 +442,7 @@ export default function PinDetailPage() {
     }
 
     return (
-        <main dir="rtl" className="relative min-h-screen overflow-hidden bg-gradient-to-br from-red-50/60 via-white to-orange-50/50 py-6 md:py-10 px-2">
+        <main dir="rtl" className="relative pb-20 min-h-screen overflow-hidden bg-gradient-to-br from-red-50/60 via-white to-orange-50/50 py-6 md:py-10 px-2">
             <div className="absolute -top-32 -left-32 w-96 h-96 bg-red-100/50 rounded-full blur-3xl pointer-events-none" />
             <div className="absolute -bottom-32 -right-32 w-[28rem] h-[28rem] bg-orange-100/40 rounded-full blur-3xl pointer-events-none" />
 
@@ -589,7 +591,7 @@ export default function PinDetailPage() {
 
                                     <button
                                         title="اشتراک‌گذاری"
-                                        onClick={handleShare}
+                                        onClick={() => setIsShareModalOpen(true)}
                                         className="flex items-center gap-2 px-4 py-2.5 rounded-full font-bold text-sm bg-gray-50 text-gray-600 ring-1 ring-gray-200 hover:bg-blue-50 hover:text-blue-600 hover:ring-blue-200 transition-all duration-300 cursor-pointer active:scale-95"
                                     >
                                         <FiShare2 className="w-[18px] h-[18px] text-gray-400 group-hover:text-blue-500" />
@@ -795,6 +797,15 @@ export default function PinDetailPage() {
                         {toast}
                     </div>
                 </div>
+            )}
+
+            {isShareModalOpen && (
+                <SharePinModal
+                    pinId={pin.id}
+                    pinTitle={pin.title}
+                    pinImageUrl={pin.imageUrl}
+                    onClose={() => setIsShareModalOpen(false)}
+                />
             )}
 
             <style>{`
