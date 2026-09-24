@@ -2,17 +2,27 @@
 
 import Image from 'next/image'
 import { useState } from 'react'
-import type { UserMini } from '../types/user'
-import { FiHeart, FiMessageCircle, FiUserPlus, FiBookmark, FiCheck, FiTrash2, FiArrowLeft } from 'react-icons/fi'
+import type { UserMini } from '@/types/user'
+import {
+    FiHeart,
+    FiMessageCircle,
+    FiUserPlus,
+    FiBookmark,
+    FiCheck,
+    FiTrash2,
+    FiSend,
+} from 'react-icons/fi'
 
+// ✅ جدول استایل‌ها — حالا ۵ نوع (message اضافه شد!)
 const NOTIFICATION_STYLES = {
     like: { icon: FiHeart, color: 'text-red-500', bg: 'bg-red-50' },
     comment: { icon: FiMessageCircle, color: 'text-blue-500', bg: 'bg-blue-50' },
     follow: { icon: FiUserPlus, color: 'text-purple-500', bg: 'bg-purple-50' },
     save: { icon: FiBookmark, color: 'text-orange-500', bg: 'bg-orange-50' },
+    message: { icon: FiSend, color: 'text-emerald-500', bg: 'bg-emerald-50' },
 } as const
 
-// ✅ [۸] union از روی خود داده — نه دستی
+// ✅ تایپ از روی خود داده — هر نوع جدید که به جدول اضافه شه، خودکار میاد
 export type NotificationType = keyof typeof NOTIFICATION_STYLES
 
 export type NotificationDTO = {
@@ -30,8 +40,6 @@ type NotificationItemProps = {
     notification: NotificationDTO
     onMarkAsRead: (id: string) => void
     onDelete: (id: string) => void
-    isMarkingRead?: boolean
-    isDeleting?: boolean
 }
 
 export default function NotificationItem({
@@ -39,12 +47,7 @@ export default function NotificationItem({
     onMarkAsRead,
     onDelete,
 }: NotificationItemProps) {
-
     const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null)
-
-    const getStyle = (type: NotificationType) => {
-        return NOTIFICATION_STYLES[type]
-    }
 
     const timeAgo = (date: string | Date) => {
         const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000)
@@ -59,12 +62,20 @@ export default function NotificationItem({
         setConfirmingDelete(null)
     }
 
-    // ✅ [۶] بدون annotation — TS از زنجیره استنباط می‌کنه
-    const style = getStyle(notification.type)
+    // ✅ استایل با محافظ — اگه روزی نوعی از دیتابیس اومد که در جدول نیست،
+    // به‌جای کرش، استایل پیش‌فرض (like) استفاده می‌شود
+    const style = NOTIFICATION_STYLES[notification.type as NotificationType]
+        ?? NOTIFICATION_STYLES.like
     const Icon = style.icon
 
     return (
-        <div className="flex items-start gap-3 p-4 bg-white rounded-2xl ring-1 ring-gray-100">
+        <div
+            className={`flex items-start gap-3 p-4 rounded-2xl transition-all duration-200
+                ${!notification.isRead
+                    ? 'bg-red-50/60 ring-1 ring-red-100'
+                    : 'bg-white ring-1 ring-gray-100'
+                }`}
+        >
             {/* آواتار */}
             <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center text-white font-bold shrink-0">
                 {notification.actor.avatar ? (
@@ -76,7 +87,7 @@ export default function NotificationItem({
 
             {/* متن */}
             <div className="flex-1 min-w-0">
-                <p className="text-xs md:text-sm text-gray-800">
+                <p className="text-sm text-gray-800">
                     <span className="font-bold">{notification.actor.name}</span>{' '}
                     {notification.message}
                 </p>
@@ -103,7 +114,7 @@ export default function NotificationItem({
                 title="حذف"
                 className="w-8 h-8 rounded-full bg-gray-50 hover:bg-red-50 flex items-center justify-center text-gray-400 hover:text-red-600 transition-colors cursor-pointer"
             >
-                ✕
+                <FiTrash2 className="w-3.5 h-3.5" />
             </button>
 
             {/* مودال تأیید حذف */}
