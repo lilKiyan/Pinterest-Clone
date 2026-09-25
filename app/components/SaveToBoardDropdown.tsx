@@ -35,6 +35,8 @@ const SaveToBoardDropdown = ({
     const [isOpenVisible, setIsOpenVisible] = useState(false)
     const [query, setQuery] = useState('')
     const [align, setAlign] = useState<'left' | 'right'>('left')
+    // 🆕 بردی که همین لحظه تیک خورد — برای انیمیشن تأیید
+    const [justToggledId, setJustToggledId] = useState<string | null>(null)
 
     const containerRef = useRef<HTMLDivElement>(null)
     const pillWrapperRef = useRef<HTMLDivElement>(null)
@@ -42,7 +44,6 @@ const SaveToBoardDropdown = ({
     const POPUP_WIDTH = 360
     const VIEWPORT_MARGIN = 16
 
-    // ✅ باز کردن
     const openDropdown = () => {
         setIsOpen(true)
         requestAnimationFrame(() => {
@@ -51,7 +52,6 @@ const SaveToBoardDropdown = ({
         onOpenChange?.(true)
     }
 
-    // ✅ بستن
     const closeDropdown = () => {
         setIsOpenVisible(false)
         setTimeout(() => {
@@ -65,11 +65,11 @@ const SaveToBoardDropdown = ({
         else openDropdown()
     }
 
-    // ✅ کلیک بیرون → بستن
+    // کلیک بیرون → بستن (کلیک + لمس)
     useEffect(() => {
         if (!isOpen) return
 
-        const handleClickOutside = (e: MouseEvent) => {
+        const handleClickOutside = (e: MouseEvent | TouchEvent) => {
             const target = e.target as Node
             if (containerRef.current && !containerRef.current.contains(target)) {
                 closeDropdown()
@@ -77,21 +77,24 @@ const SaveToBoardDropdown = ({
         }
 
         document.addEventListener('mousedown', handleClickOutside)
-        return () => document.removeEventListener('mousedown', handleClickOutside)
+        document.addEventListener('touchstart', handleClickOutside)
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside)
+            document.removeEventListener('touchstart', handleClickOutside)
+        }
     }, [isOpen])
 
-    // ✅ اسکرول → بستن (با capture برای گرفتن اسکرول هر کانتینر)
+    // اسکرول → بستن
     useEffect(() => {
         if (!isOpen) return
 
         const handleScroll = () => closeDropdown()
 
-        // true یعنی capture phase → هر اسکرولی توی هر کانتینری رو میگیره
         window.addEventListener('scroll', handleScroll, true)
         return () => window.removeEventListener('scroll', handleScroll, true)
     }, [isOpen])
 
-    // ✅ محاسبه‌ی align (چپ/راست)
+    // محاسبه align (چپ/راست) — فقط دسکتاپ
     useEffect(() => {
         if (!isOpen || !pillWrapperRef.current) return
         const rect = pillWrapperRef.current.getBoundingClientRect()
@@ -113,8 +116,14 @@ const SaveToBoardDropdown = ({
     )
 
     const handleToggle = (board: Board) => {
+        const wasSaved = savedBoardIds.has(board.id)
         onToggleSave(board)
-        // منو باز می‌مونه تا کاربر چند برد رو مدیریت کنه
+
+        // ✨ انیمیشن تأیید: تیک روی برد تازه تغییر وضعیت‌یافته می‌پرد
+        if (!wasSaved) {
+            setJustToggledId(board.id)
+            setTimeout(() => setJustToggledId(null), 600)
+        }
     }
 
     const handleCreateBoard = () => {
@@ -126,18 +135,70 @@ const SaveToBoardDropdown = ({
 
     const savedBoardIds = new Set(savedBoards.map((sb) => sb.boardId))
 
+    const renderBoardRow = (board: Board) => {
+        const isSaved = savedBoardIds.has(board.id)
+        const isJustToggled = justToggledId === board.id
+
+        return (
+            <button
+                key={board.id}
+                onClick={() => handleToggle(board)}
+                className={`group/board w-full flex items-center gap-3 px-2.5 py-2 rounded-2xl transition-all duration-200 cursor-pointer text-right
+                    ${isSaved
+                        ? 'bg-gradient-to-l from-red-50 to-red-50/30 ring-1 ring-red-100'
+                        : 'hover:bg-gray-50 active:scale-[0.98]'
+                    }`}
+            >
+                {/* کاور برد */}
+                <div className="relative w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-gray-100
+                    ring-1 ring-black/5 transition-all duration-300
+                    group-hover/board:ring-red-200 group-hover/board:scale-[1.05]">
+                    <Image
+                        src={board.thumbnail}
+                        alt={board.name}
+                        fill
+                        sizes="48px"
+                        className="object-cover"
+                    />
+                </div>
+
+                {/* نام برد */}
+                <span className={`font-bold text-sm truncate flex-1 transition-colors
+                    ${isSaved ? 'text-red-700' : 'text-gray-900 group-hover/board:text-gray-700'}`}>
+                    {board.name}
+                </span>
+
+                {/* تیک — با انیمیشن ورود فنری */}
+                <span
+                    className={`relative w-6 h-6 shrink-0 rounded-full flex items-center justify-center transition-all duration-300
+                        ${isSaved
+                            ? 'bg-gradient-to-br from-red-500 to-rose-600 scale-100 shadow-md shadow-red-200/60'
+                            : 'border-2 border-gray-200 scale-90 opacity-0 group-hover/board:opacity-100 group-hover/board:scale-100 group-hover/board:border-gray-300'
+                        } ${isJustToggled ? 'animate-[checkPop_0.5s_cubic-bezier(0.34,1.56,0.64,1)]' : ''}`}
+                >
+                    {isSaved && <FiCheck className="w-3.5 h-3.5 text-white" strokeWidth={3} />}
+                </span>
+            </button>
+        )
+    }
+
     return (
         <div
             ref={containerRef}
             className="absolute top-3 left-3 right-3 hidden md:flex items-center justify-between gap-2"
         >
             <div className="relative" ref={pillWrapperRef}>
-                {/* دکمه تریگر */}
+                {/* ═══ دکمه تریگر ═══ */}
                 <button
                     onClick={toggleDropdown}
-                    className="group flex items-center gap-1.5 h-[38px] pl-3 pr-2.5 rounded-xl bg-black/55 hover:bg-black/70 backdrop-blur-md text-white text-sm font-semibold shadow-lg shadow-black/20 hover:shadow-black/30 transition-all duration-200 cursor-pointer pointer-events-auto"
+                    className={`group flex items-center gap-1.5 h-[38px] pl-3 pr-2.5 rounded-xl backdrop-blur-md text-white text-sm font-semibold shadow-lg transition-all duration-200 cursor-pointer pointer-events-auto
+                        ${isOpen
+                            ? 'bg-black/75 shadow-black/30 scale-[1.03]'
+                            : 'bg-black/55 hover:bg-black/70 shadow-black/20 hover:shadow-black/30'
+                        }`}
                 >
-                    <FiBookmark className="w-4 h-4 shrink-0 text-white/80 group-hover:scale-110 transition-transform" />
+                    <FiBookmark className={`w-4 h-4 shrink-0 transition-all duration-300
+                        ${isOpenVisible ? 'text-red-400 fill-red-400 scale-110' : 'text-white/80 group-hover:scale-110'}`} />
                     <span className="truncate max-w-[120px]">
                         {savedBoards.length === 0
                             ? 'ذخیره'
@@ -146,95 +207,94 @@ const SaveToBoardDropdown = ({
                                 : `${savedBoards.length} برد`}
                     </span>
                     <FiChevronDown
-                        className={`shrink-0 w-3.5 h-3.5 transition-transform duration-200 ${isOpenVisible ? 'rotate-180' : ''
-                            }`}
+                        className={`shrink-0 w-3.5 h-3.5 transition-transform duration-200 ${isOpenVisible ? 'rotate-180' : ''}`}
                     />
                 </button>
 
-                {/* پاپ‌آپ */}
+                {/* ═══ پاپ‌آپ ═══ */}
                 {isOpen && (
                     <div
-                        className={`absolute top-[calc(100%+8px)] ${align === 'left' ? 'left-0' : 'right-0'
-                            } w-[360px] max-h-[420px] bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl shadow-black/10 ring-1 ring-black/5 flex flex-col overflow-hidden z-50 transition-all duration-200 ease-out origin-top-left ${isOpenVisible
+                        className={`absolute top-[calc(100%+10px)] ${align === 'left' ? 'left-0' : 'right-0'
+                            } w-[calc(100vw-2rem)] sm:w-[360px] max-h-[min(480px,calc(100vh-8rem))]
+                            bg-white rounded-3xl shadow-2xl shadow-black/15 ring-1 ring-black/5
+                            flex flex-col overflow-hidden z-50 pointer-events-auto
+                            transition-all duration-200 ease-out origin-top ${isOpenVisible
                                 ? 'opacity-100 scale-100 translate-y-0'
                                 : 'opacity-0 scale-95 -translate-y-2'
                             }`}
                     >
-                        {/* جستجو */}
-                        <div className="px-4 pt-4 pb-3">
-                            <h3 className="text-center font-bold text-gray-900 text-base mb-3">
+                        {/* ═══ هدر ═══ */}
+                        <div className="relative px-4 pt-4 pb-3 shrink-0">
+                            {/* دستگیره drag موبایل */}
+                            <div className="sm:hidden flex justify-center mb-2.5">
+                                <div className="w-9 h-1 rounded-full bg-gray-200" />
+                            </div>
+
+                            <h3 className="text-center font-extrabold text-gray-900 text-base mb-3">
                                 ذخیره در برد
                             </h3>
+
                             <div className="relative">
-                                <FiSearch className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                                <FiSearch className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
                                 <input
                                     autoFocus
                                     value={query}
                                     onChange={(e) => setQuery(e.target.value)}
-                                    placeholder="جستجو"
-                                    className="w-full h-11 pr-10 pl-3 rounded-xl border-2 border-gray-200 focus:border-red-400 focus:ring-4 focus:ring-red-100 outline-none text-sm text-right transition-all"
+                                    placeholder="جستجوی برد..."
+                                    className="w-full h-11 pr-10 pl-4 bg-gray-50 rounded-2xl ring-1 ring-gray-200/70
+                                        focus:bg-white focus:ring-2 focus:ring-red-300/60 outline-none
+                                        text-sm text-right text-gray-800 placeholder-gray-400
+                                        transition-all duration-200"
                                 />
                             </div>
                         </div>
 
-                        {/* لیست بردها */}
-                        <div className="flex-1 overflow-y-auto px-2 pb-2">
+                        {/* ═══ لیست بردها ═══ */}
+                        <div className="flex-1 overflow-y-auto px-2.5 pb-2 scroll-smooth
+                            [&::-webkit-scrollbar]:w-1.5
+                            [&::-webkit-scrollbar-thumb]:bg-gray-200
+                            [&::-webkit-scrollbar-thumb]:rounded-full
+                            [&::-webkit-scrollbar-track]:bg-transparent">
                             {isLoadingBoards ? (
-                                <div className="flex justify-center py-8">
-                                    <div className="w-6 h-6 border-[3px] border-gray-200 border-t-red-500 rounded-full animate-spin" />
+                                <div className="flex flex-col justify-center items-center gap-3 py-10">
+                                    <div className="w-7 h-7 border-[3px] border-gray-100 border-t-red-500 rounded-full animate-spin" />
+                                    <span className="text-xs text-gray-400 font-medium">در حال بارگذاری بردها...</span>
+                                </div>
+                            ) : filteredBoards.length > 0 ? (
+                                <div className="space-y-1 py-1">
+                                    {filteredBoards.map(renderBoardRow)}
                                 </div>
                             ) : (
-                                <>
-                                    {filteredBoards.length > 0 ? (
-                                        filteredBoards.map((board) => {
-                                            const isSaved = savedBoardIds.has(board.id)
-                                            return (
-                                                <button
-                                                    key={board.id}
-                                                    onClick={() => handleToggle(board)}
-                                                    className={`group/board w-full flex items-center gap-3 px-2 py-2 rounded-xl transition-all duration-200 cursor-pointer text-right ${isSaved
-                                                            ? 'bg-red-50/60 hover:bg-red-50'
-                                                            : 'hover:bg-gray-50'
-                                                        }`}
-                                                >
-                                                    <div className="relative w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-gray-100 ring-1 ring-black/5">
-                                                        <Image
-                                                            src={board.thumbnail}
-                                                            alt={board.name}
-                                                            fill
-                                                            sizes="48px"
-                                                            className="object-cover"
-                                                        />
-                                                    </div>
-                                                    <span className="font-semibold text-gray-900 text-sm truncate flex-1">
-                                                        {board.name}
-                                                    </span>
-                                                    {isSaved && (
-                                                        <span className="w-6 h-6 rounded-full bg-red-600 flex items-center justify-center shrink-0">
-                                                            <FiCheck className="w-3.5 h-3.5 text-white" />
-                                                        </span>
-                                                    )}
-                                                </button>
-                                            )
-                                        })
-                                    ) : (
-                                        <p className="px-2 py-8 text-center text-sm text-gray-400">
-                                            بردی پیدا نشد
+                                <div className="py-10 text-center">
+                                    <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-gradient-to-br from-gray-50 to-gray-100 ring-1 ring-gray-100 flex items-center justify-center rotate-3">
+                                        <FiBookmark className="w-6 h-6 text-gray-300" />
+                                    </div>
+                                    <p className="text-sm text-gray-500 font-bold">
+                                        {query ? 'بردی با این نام پیدا نشد' : 'هنوز بردی نساختی'}
+                                    </p>
+                                    {!query && (
+                                        <p className="text-xs text-gray-400 mt-1">
+                                            با دکمه پایین اولین بردت رو بساز
                                         </p>
                                     )}
-                                </>
+                                </div>
                             )}
                         </div>
 
-                        {/* ساخت برد جدید */}
+                        {/* ═══ ساخت برد جدید ═══ */}
                         <button
                             onClick={handleCreateBoard}
-                            className="group flex items-center gap-3 px-4 py-3 border-t border-gray-100 hover:bg-gradient-to-l hover:from-red-50 hover:to-transparent cursor-pointer transition-all text-right"
+                            className="shrink-0 group flex items-center gap-3 px-4 py-3.5 border-t border-gray-100
+                                bg-gray-50/50 hover:bg-gradient-to-l hover:from-red-50 hover:to-white
+                                cursor-pointer transition-all text-right"
                         >
-                            <span className="w-10 h-10 rounded-full bg-gray-100 group-hover:bg-red-100 flex items-center justify-center shrink-0 transition-colors">
-                                <FiPlus className="text-gray-700 group-hover:text-red-600 transition-colors" />
+                            <span className="w-9 h-9 rounded-xl bg-white ring-1 ring-gray-200
+                                group-hover:bg-red-600 group-hover:ring-red-600
+                                flex items-center justify-center shrink-0
+                                shadow-sm transition-all duration-300 group-hover:rotate-90 group-hover:scale-110">
+                                <FiPlus className="text-gray-500 group-hover:text-white transition-colors w-4 h-4" />
                             </span>
-                            <span className="font-semibold text-gray-900 text-sm group-hover:text-red-700 transition-colors">
+                            <span className="font-bold text-sm text-gray-700 group-hover:text-red-700 transition-colors">
                                 ساخت برد جدید
                             </span>
                         </button>

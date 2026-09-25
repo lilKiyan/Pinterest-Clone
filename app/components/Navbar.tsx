@@ -65,8 +65,8 @@ const Navbar = () => {
   const [highlightedIndex, setHighlightedIndex] = useState(-1)
   const searchContainerRef = useRef<HTMLDivElement>(null)
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const profileRef = useRef<HTMLDivElement>(null)
 
-  // ✅ Query ۱: دریافت کاربر (فقط اگه در store نباشه)
   const { data: fetchedUser } = useQuery({
     queryKey: ['me'],
     queryFn: async () => {
@@ -85,7 +85,6 @@ const Navbar = () => {
     if (fetchedUser) setUser(fetchedUser)
   }, [fetchedUser, setUser])
 
-  // ✅ Query ۲: دریافت بردها (cache اشتراکی)
   const { data: boards = [] } = useQuery<Board[]>({
     queryKey: ['boards'],
     queryFn: async () => {
@@ -97,7 +96,6 @@ const Navbar = () => {
     staleTime: 60 * 1000, // ۱ دقیقه تازه
   })
 
-  // ✅ Query ۳: جستجوی زنده (با debounce)
   const { data: searchData, isFetching: isSearching } = useQuery({
     queryKey: ['navbar-search', debouncedQuery],
     queryFn: async () => {
@@ -155,7 +153,6 @@ const Navbar = () => {
     try {
       await fetch('/api/auth/logout', { method: 'POST' })
       setUser(null)
-      // ✅ پاک کردن کش کاربر و بردها
       queryClient.removeQueries({ queryKey: ['me'] })
       queryClient.setQueryData(['boards'], [])
       router.push('/login')
@@ -187,6 +184,25 @@ const Navbar = () => {
     const handleScroll = () => closeDropdown()
     window.addEventListener('scroll', handleScroll, true)
     return () => window.removeEventListener('scroll', handleScroll, true)
+  }, [isDropdownOpen])
+
+  // ── بستن دراپ‌داون پروفایل با کلیک/لمس بیرون ──
+  useEffect(() => {
+    if (!isDropdownOpen) return
+
+    const handleOutside = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as Node
+      if (profileRef.current && !profileRef.current.contains(target)) {
+        closeDropdown()
+      }
+    }
+
+    document.addEventListener('mousedown', handleOutside)
+    document.addEventListener('touchstart', handleOutside)   // ✅ موبایل
+    return () => {
+      document.removeEventListener('mousedown', handleOutside)
+      document.removeEventListener('touchstart', handleOutside)
+    }
   }, [isDropdownOpen])
 
   // ── بستن پیشنهادها با کلیک بیرون ──
@@ -553,7 +569,7 @@ const Navbar = () => {
           <div className="w-px h-6 bg-gray-200 mx-1 hidden sm:block" />
 
           {/* ═══ پروفایل ═══ */}
-          <div className="relative">
+          <div className="relative" ref={profileRef}>
             <div className="flex items-center gap-0.5 pl-1 pr-0.5 py-0.5 rounded-full hover:bg-gray-100 transition-colors duration-200">
               <button
                 onClick={toggleDropdown}
@@ -593,7 +609,7 @@ const Navbar = () => {
 
             {isDropdownOpen && (
               <>
-                <div className="fixed inset-0 z-40" onClick={closeDropdown} />
+              
 
                 <div
                   className={`absolute left-0 mt-3 w-52 md:w-56 bg-white rounded-2xl shadow-2xl shadow-black/5 ring-1 ring-black/5 z-50 overflow-hidden origin-top-left transition-all ease-out ${isDropdownVisible
