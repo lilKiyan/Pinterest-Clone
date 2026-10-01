@@ -162,7 +162,7 @@ export default function MyBoardsPage() {
                     <p className="text-gray-500 text-sm">هنوز بردی نساختی.</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-6 ">
                     {boards.map((board) => (
                         <BoardCard
                             key={board.id}
