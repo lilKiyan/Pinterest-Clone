@@ -70,7 +70,7 @@ export default function BoardCard({
 
             <div
                 className="
-                    absolute top-2.5 left-10 md:left-2.5 flex gap-1.5
+                    absolute top-2.5 left-4 md:left-2.5 flex gap-2
                     transition-all duration-300 ease-out
                     opacity-100 translate-y-0
                     [@media(hover:hover)]:opacity-0
