@@ -7,6 +7,7 @@ export async function DELETE(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+
         const user = await getCurrentUser()
         if (!user) {
             return NextResponse.json(

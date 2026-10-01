@@ -34,6 +34,9 @@ model User {
   unreadNotifications Int            @default(0)
   notifications       Notification[]
   sentNotifications   Notification[] @relation("notificationActor")
+
+  roles  UserRole[] @relation("userRoles")
+  banned Boolean    @default(false)
 }
 
 model Pin {
@@ -193,4 +196,44 @@ model Notification {
 
   @@index([userId, isRead, createdAt(sort: Desc)])
   @@index([actorId])
+}
+
+model Role {
+  id          String           @id @default(cuid())
+  name        String           @unique // "admin" | "moderator" | "user"
+  description String?
+  users       UserRole[]
+  permissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  key         String           @unique // "reports.view" | "users.ban" | "pins.delete"
+  description String?
+  roles       RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permissionId String
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  userId     String
+  user       User     @relation("userRoles", fields: [userId], references: [id], onDelete: Cascade)
+  roleId     String
+  role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  assignedAt DateTime @default(now())
+
+  @@id([userId, roleId])
+  @@map("user_roles")
 }

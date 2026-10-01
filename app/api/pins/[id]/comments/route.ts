@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
 import { validateCommentLength } from '@/lib/validations'
 import { createNotification } from '@/lib/notifications'
+import { rateLimit, getClientIp } from '@/lib/rateLimit'
+import { moderateText } from '@/lib/moderation'
 
 // دریافت کامنت‌های یک پین
 export async function GET(
@@ -42,6 +44,14 @@ export async function POST(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const rl = rateLimit(getClientIp(request), { limit: 10, windowMs: 60_000 })
+        if (!rl.ok) {
+            return NextResponse.json(
+                { error: `کمی آرام‌تر! ${rl.retryAfter} ثانیه دیگر تلاش کنید` },
+                { status: 429, headers: { 'Retry-After': String(rl.retryAfter) } }
+            )
+        }
+
         const user = await getCurrentUser()
 
         if (!user) {
@@ -69,6 +79,11 @@ export async function POST(
         const contentError = validateCommentLength(trimmed)
         if (contentError) {
             return NextResponse.json({ error: contentError }, { status: 400 })
+        }
+
+        const moderation = moderateText(trimmed)
+        if (!moderation.ok) {
+            return NextResponse.json({ error: moderation.reason }, { status: 400 })
         }
 
         // ۳. بررسی وجود پین

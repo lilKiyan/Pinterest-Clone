@@ -3,7 +3,7 @@
 // استراتژی: API هرگز | تصاویر Cache-First | صفحات Network-First
 // ═══════════════════════════════════════════════
 
-const VERSION = 'v1'
+const VERSION = 'v2'
 const STATIC_CACHE = `pinverse-static-${VERSION}`
 const IMAGE_CACHE = `pinverse-images-${VERSION}`
 const PAGES_CACHE = `pinverse-pages-${VERSION}`

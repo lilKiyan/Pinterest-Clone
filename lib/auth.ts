@@ -4,7 +4,7 @@ import { prisma } from './prisma'
 import bcrypt from 'bcryptjs'
 import { verifyToken, COOKIE_NAME } from './jwt'
 
-// ✅ دوباره صادر کردن برای اینکه فایل‌های دیگه‌ای که از auth.ts ایمپورت می‌کنن، به مشکل نخورن
+
 export { signToken, verifyToken, COOKIE_NAME } from './jwt'
 
 export async function hashPassword(password: string) {

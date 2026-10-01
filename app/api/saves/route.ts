@@ -2,9 +2,18 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
 import { createNotification } from '@/lib/notifications'
+import { rateLimit, getClientIp } from '@/lib/rateLimit'
 
 export async function POST(request: Request) {
     try {
+        const rl = rateLimit(getClientIp(request), { limit: 30, windowMs: 60_000 })
+        if (!rl.ok) {
+            return NextResponse.json(
+                { error: `کمی آرام‌تر! ${rl.retryAfter} ثانیه دیگر تلاش کنید` },
+                { status: 429, headers: { 'Retry-After': String(rl.retryAfter) } }
+            )
+        }
+
         const user = await getCurrentUser()
 
         if (!user) {

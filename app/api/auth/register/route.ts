@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { hashPassword, signToken, COOKIE_NAME } from '@/lib/auth'
 import { cookies } from 'next/headers'
+import { rateLimit, getClientIp } from '@/lib/rateLimit'
+
 import {
     validateEmail,
     validateUsername,
@@ -17,6 +19,15 @@ export const fetchCache = 'force-no-store'
 
 export async function POST(request: Request) {
     try {
+
+        const rl = rateLimit(getClientIp(request), { limit: 3, windowMs: 600_000 })
+        if (!rl.ok) {
+            return NextResponse.json(
+                { error: `کمی آرام‌تر! ${rl.retryAfter} ثانیه دیگر تلاش کنید` },
+                { status: 429, headers: { 'Retry-After': String(rl.retryAfter) } }
+            )
+        }
+
         const body = await request.json()
         const { email, username, name, password } = body
 

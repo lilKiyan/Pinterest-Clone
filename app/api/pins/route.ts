@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
+import { rateLimit, getClientIp } from '@/lib/rateLimit'
+import { moderateText } from '@/lib/moderation'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -24,7 +26,7 @@ export async function GET(request: Request) {
 
         const [pins, totalCount] = await Promise.all([
             prisma.pin.findMany({
-                where: reportedFilter,      
+                where: reportedFilter,
                 orderBy: { createdAt: 'desc' },
                 skip,
                 take: limit,
@@ -36,7 +38,7 @@ export async function GET(request: Request) {
                 },
             }),
             prisma.pin.count({
-                where: reportedFilter,       
+                where: reportedFilter,
             }),
         ])
 
@@ -55,7 +57,7 @@ export async function GET(request: Request) {
                 createdAt: pin.createdAt,
                 updatedAt: pin.updatedAt,
                 userId: pin.userId,
-                isOwner: false,  
+                isOwner: false,
                 isSavedByMe: userSaves.length > 0,
                 savedBoards: userSaves.map((s) => ({
                     boardId: s.boardId,
@@ -85,6 +87,14 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
     try {
+        const rl = rateLimit(getClientIp(request), { limit: 15, windowMs: 600_000 })
+        if (!rl.ok) {
+            return NextResponse.json(
+                { error: `سقف ساخت پین موقتاً پر شده. ${rl.retryAfter} ثانیه دیگر تلاش کنید` },
+                { status: 429, headers: { 'Retry-After': String(rl.retryAfter) } }
+            )
+        }
+
         const user = await getCurrentUser()
 
         if (!user) {
@@ -102,6 +112,16 @@ export async function POST(request: Request) {
                 { error: 'عنوان و تصویر الزامی است' },
                 { status: 400 }
             )
+        }
+
+        const titleModeration = moderateText(title.trim())
+        if (!titleModeration.ok) {
+            return NextResponse.json({ error: `عنوان: ${titleModeration.reason}` }, { status: 400 })
+        }
+
+        const descriptionModeration = moderateText(description?.trim() || '')
+        if (!descriptionModeration.ok) {
+            return NextResponse.json({ error: `توضیحات: ${descriptionModeration.reason}` }, { status: 400 })
         }
 
         const newPin = await prisma.pin.create({

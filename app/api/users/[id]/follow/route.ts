@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
 import { createNotification, removeNotification } from '@/lib/notifications'
+import { rateLimit, getClientIp } from '@/lib/rateLimit'
 
 export async function GET(
     request: Request,
@@ -41,8 +42,15 @@ export async function POST(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const user = await getCurrentUser()
+        const rl = rateLimit(getClientIp(request), { limit: 30, windowMs: 60_000 })
+        if (!rl.ok) {
+            return NextResponse.json(
+                { error: `کمی آرام‌تر! ${rl.retryAfter} ثانیه دیگر تلاش کنید` },
+                { status: 429, headers: { 'Retry-After': String(rl.retryAfter) } }
+            )
+        }
 
+        const user = await getCurrentUser()
         if (!user) {
             return NextResponse.json(
                 { error: 'برای دنبال کردن وارد شوید' },
@@ -51,7 +59,6 @@ export async function POST(
         }
 
         const { id } = await params
-
         if (user.id === id) {
             return NextResponse.json(
                 { error: 'نمی‌توانید خودتان را دنبال کنید' },

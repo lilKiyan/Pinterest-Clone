@@ -54,7 +54,6 @@ export default function UpdatesPage() {
             return res.json() as Promise<{ isRead: boolean; unreadCount: number }>
         },
         onSuccess: (data) => {
-            // ✅ بج زنده — بدون درخواست اضافه، از خروجی API
             queryClient.setQueryData<{ count: number }>(
                 ['notifications-count', user?.id],
                 { count: data.unreadCount }

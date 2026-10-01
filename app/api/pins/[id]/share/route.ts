@@ -1,12 +1,21 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
+import { rateLimit, getClientIp } from '@/lib/rateLimit'   // ✅ جدید
 
 export async function POST(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const rl = rateLimit(getClientIp(request), { limit: 10, windowMs: 60_000 })
+        if (!rl.ok) {
+            return NextResponse.json(
+                { error: `کمی آرام‌تر! ${rl.retryAfter} ثانیه دیگر تلاش کنید` },
+                { status: 429, headers: { 'Retry-After': String(rl.retryAfter) } }
+            )
+        }
+
         const { id } = await params
         const user = await getCurrentUser()
 
@@ -52,7 +61,6 @@ export async function POST(
 
         // ── گارد رابطه: هر گیرنده یا چت دارد یا فالوشده است ──
         const [chatRecipients, followedIds] = await Promise.all([
-            // گیرندگانی که با آنها گفتگو داریم
             prisma.conversation.findMany({
                 where: {
                     AND: [
@@ -64,7 +72,6 @@ export async function POST(
                     participants: { select: { userId: true } },
                 },
             }),
-            // گیرندگانی که فالوشان کرده‌ایم
             prisma.follow.findMany({
                 where: {
                     followerId: user.id,
@@ -84,7 +91,6 @@ export async function POST(
         })
         followedIds.forEach((f) => allowedIds.add(f.followingId))
 
-        // تفکیک مجاز / غیرمجاز
         const validRecipients = uniqueRecipients.filter((r) => allowedIds.has(r))
         const rejected = uniqueRecipients.filter((r) => !allowedIds.has(r))
 
@@ -98,7 +104,6 @@ export async function POST(
         // ── برای هر گیرنده: پیدا/ساخت گفتگو + ارسال پیام پین‌دار ──
         const results = await Promise.all(
             validRecipients.map(async (recipientId) => {
-                // ۱. گفتگوی موجود یا جدید (همان منطق POST /api/conversations)
                 let conversation = await prisma.conversation.findFirst({
                     where: {
                         AND: [
@@ -123,7 +128,6 @@ export async function POST(
                     })
                 }
 
-                // ۲. پیام پین‌دار
                 const message = await prisma.message.create({
                     data: {
                         conversationId: conversation.id,
@@ -134,7 +138,6 @@ export async function POST(
                     select: { id: true, createdAt: true },
                 })
 
-                // ۳. بروزرسانی زمان گفتگو (برای سرچینی لیست چت‌ها)
                 await prisma.conversation.update({
                     where: { id: conversation.id },
                     data: { updatedAt: new Date() },
@@ -148,7 +151,7 @@ export async function POST(
             {
                 sent: results.length,
                 sentTo: results.map((r) => r.recipientId),
-                rejected,   // گیرنده‌های غیرمجاز (اگر بودند)
+                rejected,
             },
             { status: 201 }
         )

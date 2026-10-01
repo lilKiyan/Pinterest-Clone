@@ -2,12 +2,22 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
 import { createNotification, removeNotification } from '@/lib/notifications'
+import { rateLimit, getClientIp } from '@/lib/rateLimit'   // ✅ جدید
 
 export async function POST(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        // 🛡️ حداکثر ۳۰ لایک/آنلایک در دقیقه — اکشن پرتکرار، سقف طبیعی انسان
+        const rl = rateLimit(getClientIp(request), { limit: 30, windowMs: 60_000 })
+        if (!rl.ok) {
+            return NextResponse.json(
+                { error: `کمی آرام‌تر! ${rl.retryAfter} ثانیه دیگر تلاش کنید` },
+                { status: 429, headers: { 'Retry-After': String(rl.retryAfter) } }
+            )
+        }
+
         const user = await getCurrentUser()
 
         if (!user) {
@@ -65,7 +75,6 @@ export async function POST(
             })
             isLiked = true
 
-            // 🔔 لایک → نوتیف برای صاحب پین
             await createNotification({
                 type: 'like',
                 recipientId: pin.userId,

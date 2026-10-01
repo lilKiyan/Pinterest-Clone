@@ -376,39 +376,6 @@ export default function PinDetailPage() {
         setTimeout(() => setToast(''), 2000)
     }
 
-    const handleShare = async () => {
-        const url = window.location.href
-        const title = pin!.title
-
-        if (navigator.share) {
-            try {
-                await navigator.share({ title, url })
-                return
-            } catch {
-                return
-            }
-        }
-
-        try {
-            if (navigator.clipboard && window.isSecureContext) {
-                await navigator.clipboard.writeText(url)
-            } else {
-                const textarea = document.createElement('textarea')
-                textarea.value = url
-                textarea.style.position = 'fixed'
-                textarea.style.opacity = '0'
-                document.body.appendChild(textarea)
-                textarea.focus()
-                textarea.select()
-                document.execCommand('copy')
-                document.body.removeChild(textarea)
-            }
-            showToast('لینک کپی شد !')
-        } catch {
-            showToast('کپی لینک ناموفق بود')
-        }
-    }
-
     // ═══════════════ RENDER ═══════════════
 
     if (loading) {
@@ -489,7 +456,6 @@ export default function PinDetailPage() {
                                                 pin.owner?.username?.charAt(0).toUpperCase()
                                             )}
                                         </div>
-                                        <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-500 rounded-full border-2 border-white" />
                                     </div>
                                     <div className="min-w-0">
                                         <p className="font-bold text-gray-900 truncate group-hover:text-red-600 transition-colors">

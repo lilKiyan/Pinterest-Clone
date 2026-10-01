@@ -15,9 +15,23 @@ const nextConfig: NextConfig = {
       }
     ],
   },
-  // ✅ این خط رو اضافه کن
-  typescript: {
-    ignoreBuildErrors: true,
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          // جلوی clickjacking (تو iframe باز نشو)
+          { key: 'X-Frame-Options', value: 'DENY' },
+          // جلوی MIME-sniffing
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          // referrer اطلاعات نده به سایت‌های خارجی
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          // دوربین/میکروفون به هیچ‌کس جز خودت
+          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+          { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
+        ],
+      },
+    ]
   },
 };
 

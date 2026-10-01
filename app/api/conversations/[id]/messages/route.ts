@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
 import { validateMessageLength } from '@/lib/validations'
 import { createNotification } from '@/lib/notifications'
+import { rateLimit, getClientIp } from '@/lib/rateLimit'
+import { moderateText } from '@/lib/moderation'   
 
 // دریافت پیام‌های یک گفتگو
 export async function GET(
@@ -76,6 +78,15 @@ export async function POST(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        // 🛡️ حداکثر ۱۰ پیام در دقیقه
+        const rl = rateLimit(getClientIp(request), { limit: 10, windowMs: 60_000 })
+        if (!rl.ok) {
+            return NextResponse.json(
+                { error: `کمی آرام‌تر! ${rl.retryAfter} ثانیه دیگر تلاش کنید` },
+                { status: 429, headers: { 'Retry-After': String(rl.retryAfter) } }
+            )
+        }
+
         const user = await getCurrentUser()
         if (!user) {
             return NextResponse.json(
@@ -117,6 +128,12 @@ export async function POST(
         const contentError = validateMessageLength(trimmed)
         if (contentError) {
             return NextResponse.json({ error: contentError }, { status: 400 })
+        }
+
+        // 🛡️ فیلتر محتوا — لینک آزاد است (پیام چت، حتی share پین)
+        const moderation = moderateText(trimmed, true)
+        if (!moderation.ok) {
+            return NextResponse.json({ error: moderation.reason }, { status: 400 })
         }
 
         // ── ساخت پیام ──

@@ -5,7 +5,7 @@ import Image from 'next/image'
 import dynamic from 'next/dynamic'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query'
-import { FiUpload, FiCheckCircle, FiFolder, FiEyeOff, FiRotateCcw } from 'react-icons/fi'
+import { FiUpload, FiCheckCircle, FiFolder, FiEyeOff, FiRotateCcw, FiShare2 } from 'react-icons/fi'
 import type { Board } from './SaveToBoardDropdown'
 import type { OptionKey } from './PinOptionsMenu'
 import type { PinDTO } from '../types/pin'
@@ -338,14 +338,7 @@ const PinCard = ({
                     />
                     <button
                         aria-label="اشتراک‌گذاری پین"
-                        onClick={() => {
-                            const url = window.location.href
-                            if (navigator.share) {
-                                navigator.share({ title: pin.title, url }).catch(() => { })
-                            } else {
-                                navigator.clipboard?.writeText(url)
-                            }
-                        }}
+                        onClick={() => setIsShareModalOpen(true)}   // ✅ به‌جای navigator.share
                         className="pointer-events-auto absolute bottom-12 right-3 w-10 h-10 bg-white/90 rounded-2xl cursor-pointer flex items-center justify-center text-lg shadow-lg hover:bg-white hover:scale-105 active:scale-95 transition-all duration-200"
                     >
                         <FiUpload />

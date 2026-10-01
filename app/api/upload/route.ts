@@ -2,6 +2,7 @@ export const runtime = 'nodejs'
 
 import { NextResponse } from 'next/server'
 import { v2 as cloudinary } from 'cloudinary'
+import { rateLimit, getClientIp } from '@/lib/rateLimit'   
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -13,6 +14,14 @@ const MAX_SERVER_SIZE = 5 * 1024 * 1024   // 5MB
 
 export async function POST(request: Request) {
   try {
+    const rl = rateLimit(getClientIp(request), { limit: 10, windowMs: 600_000 })
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: `سقف آپلود پر شده. ${rl.retryAfter} ثانیه دیگر تلاش کنید` },
+        { status: 429, headers: { 'Retry-After': String(rl.retryAfter) } }
+      )
+    }
+
     const formData = await request.formData()
     const file = formData.get('file') as File | null
 
@@ -35,7 +44,6 @@ export async function POST(request: Request) {
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
-    // آپلود به Cloudinary
     const result = await new Promise<any>((resolve, reject) => {
       cloudinary.uploader.upload_stream(
         {
