@@ -19,7 +19,7 @@ export default function BoardCard({
     const coverPins: BoardPinPreview[] = board.pins || []
 
     return (
-        <div className="group relative px-8 md:px-0">
+        <div className="group relative px-1 md:px-0">
             <Link href={`/board/${board.id}`} className="block no-underline">
                 <div
                     className={`relative rounded-2xl overflow-hidden bg-gray-100 ring-1 ring-black/5 shadow-sm transition-all duration-300 group-hover:shadow-xl group-hover:ring-black/10 ${
