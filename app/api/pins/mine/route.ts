@@ -21,6 +21,9 @@ export async function GET() {
                     where: { userId: user.id },
                     include: { board: true },
                 },
+                category: {                       // ✅
+                    select: { slug: true, name: true, icon: true, color: true },
+                },
             },
         })
 
@@ -29,8 +32,8 @@ export async function GET() {
             return {
                 id: pin.id,
                 title: pin.title,
-                imageWidth: pin.imageWidth,    // ✅
-                imageHeight: pin.imageHeight,  // ✅
+                imageWidth: pin.imageWidth,
+                imageHeight: pin.imageHeight,
                 description: pin.description,
                 imageUrl: pin.imageUrl,
                 createdAt: pin.createdAt,
@@ -38,6 +41,14 @@ export async function GET() {
                 userId: pin.userId,
                 isOwner: true,
                 isSavedByMe: userSaves.length > 0,
+                category: pin.category
+                    ? {
+                        slug: pin.category.slug,
+                        name: pin.category.name,
+                        icon: pin.category.icon,
+                        color: pin.category.color,
+                    }
+                    : null,
                 savedBoards: userSaves.map((s) => ({
                     boardId: s.boardId,
                     boardName: s.board?.name || null,

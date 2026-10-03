@@ -44,8 +44,10 @@ export async function GET(
             take: 20,
             include: {
                 saves: { include: { board: true } },
-                // 🔄 جدید
                 reports: { select: { reporterId: true } },
+                category: {
+                    select: { slug: true, name: true, icon: true, color: true },
+                },
             },
         })
 
@@ -66,9 +68,15 @@ export async function GET(
                 userId: pin.userId,
                 isOwner: false,
                 isSavedByMe: userSaves.length > 0,
-                isReportedByMe: user
-                    ? pin.reports.some((r) => r.reporterId === user.id)
-                    : false,
+                // ✨ دسته‌بندی پین
+                category: pin.category
+                    ? {
+                        slug: pin.category.slug,
+                        name: pin.category.name,
+                        icon: pin.category.icon,
+                        color: pin.category.color,
+                    }
+                    : null,
                 savedBoards: userSaves.map((s) => ({
                     boardId: s.boardId,
                     boardName: s.board?.name || null,

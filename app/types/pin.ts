@@ -5,6 +5,12 @@ export type SavedBoardInfo = {
     boardName: string | null   // API می‌فرسته: s.board?.name || null
 }
 
+export type CategoryInfo = {
+    slug: string
+    name: string
+    icon: string
+    color: string
+}
 
 export type PinDTO = {
     // هسته — همیشه هستن
@@ -22,6 +28,7 @@ export type PinDTO = {
     link?: string | null
     isOwner?: boolean
     isSavedByMe?: boolean
+    category?: CategoryInfo | null 
     savedBoards?: SavedBoardInfo[]
 }
 

@@ -10,6 +10,7 @@ import type { Board } from './SaveToBoardDropdown'
 import type { OptionKey } from './PinOptionsMenu'
 import type { PinDTO } from '../types/pin'
 import type { Board as BoardDTO } from '../types/board'
+import { getCategoryMeta } from '@/lib/categories'
 
 const ReportPinModal = dynamic(() => import('./ReportPinModal'), { ssr: false })
 const SharePinModal = dynamic(() => import('./SharePinModal'), { ssr: false })
@@ -79,6 +80,7 @@ const PinCard = ({
     const [isReportModalOpen, setIsReportModalOpen] = useState(false)
     const [isUnreporting, setIsUnreporting] = useState(false)
     const [isShareModalOpen, setIsShareModalOpen] = useState(false)
+    const categoryMeta = getCategoryMeta(pin.category?.slug)
 
     const { data: boardsRaw = [], isLoading: isLoadingBoards } = useQuery<BoardDTO[]>({
         queryKey: ['boards'],
@@ -185,13 +187,13 @@ const PinCard = ({
             const blobUrl = URL.createObjectURL(blob)
 
             const link = document.createElement('a')
-            link.href = blobUrl         
-            link.download = filename     
+            link.href = blobUrl
+            link.download = filename
             document.body.appendChild(link)
             link.click()
             document.body.removeChild(link)
 
-            URL.revokeObjectURL(blobUrl)   
+            URL.revokeObjectURL(blobUrl)
         } catch (error) {
             console.error('خطا در دانلود:', error)
         }
@@ -319,6 +321,25 @@ const PinCard = ({
                             className="object-cover group-hover:brightness-75 transition-all duration-300"
                             priority={priority}
                         />
+
+                        {categoryMeta && (
+                            <span
+                                className="absolute top-2 right-2 z-10
+                                    inline-flex items-center gap-1
+                                    bg-black/45 backdrop-blur-md
+                                    text-white text-[10px] font-bold
+                                    px-2 py-0.5 rounded-full
+                                    ring-1 ring-white/20
+                                    transition-all duration-200
+                                    group-hover:opacity-0"
+                            >
+                                <span
+                                    className="w-1.5 h-1.5 rounded-full"
+                                    style={{ backgroundColor: categoryMeta.color }}
+                                />
+                                {categoryMeta.name}
+                            </span>
+                        )}
                     </div>
                 </Link>
 
@@ -348,7 +369,7 @@ const PinCard = ({
                 <div className="mt-1.5 px-1 flex items-center justify-between gap-2">
                     <p className="flex items-center gap-1.5 text-xs text-gray-500 truncate min-w-0">
                         <FiFolder className="w-3 h-3 shrink-0 text-gray-400" />
-                        <span className="truncate text-[10px] md:text-sm">
+                        <span className="truncate text-[9px] md:text-xs">
                             {savedBoards.length === 0
                                 ? 'بدون برد'
                                 : savedBoards.length === 1

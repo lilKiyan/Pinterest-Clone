@@ -19,6 +19,19 @@ export async function GET(request: Request) {
         const limit = Number(searchParams.get('limit') || '12')
         const skip = (page - 1) * limit
 
+        const categorySlug = searchParams.get('category') || ''
+        let categoryFilter = {}
+        if (categorySlug) {
+            const category = await prisma.category.findUnique({
+                where: { slug: categorySlug },
+                select: { id: true, isActive: true },
+            })
+
+            if (category?.isActive) {
+                categoryFilter = { categoryId: category.id }
+            }
+        }
+
 
         const reportedFilter = user
             ? { reports: { none: { reporterId: user.id } } }
@@ -26,7 +39,9 @@ export async function GET(request: Request) {
 
         const [pins, totalCount] = await Promise.all([
             prisma.pin.findMany({
-                where: reportedFilter,
+                where: {
+                    AND: [reportedFilter, categoryFilter],
+                },
                 orderBy: { createdAt: 'desc' },
                 skip,
                 take: limit,
@@ -34,11 +49,16 @@ export async function GET(request: Request) {
                     saves: {
                         include: { board: true },
                     },
+                    category: {
+                        select: { slug: true, name: true, icon: true, color: true },
+                    },
 
                 },
             }),
             prisma.pin.count({
-                where: reportedFilter,
+                where: {
+                    AND: [reportedFilter, categoryFilter],   
+                },
             }),
         ])
 
@@ -59,6 +79,14 @@ export async function GET(request: Request) {
                 userId: pin.userId,
                 isOwner: false,
                 isSavedByMe: userSaves.length > 0,
+                category: pin.category
+                    ? {
+                        slug: pin.category.slug,
+                        name: pin.category.name,
+                        icon: pin.category.icon,
+                        color: pin.category.color,
+                    }
+                    : null,
                 savedBoards: userSaves.map((s) => ({
                     boardId: s.boardId,
                     boardName: s.board?.name || null,
@@ -105,7 +133,7 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json()
-        const { title, description, imageUrl, imageWidth, imageHeight, boardId } = body
+        const { title, description, imageUrl, imageWidth, imageHeight, boardId, category } = body
 
         if (!title || !imageUrl) {
             return NextResponse.json(
@@ -113,6 +141,19 @@ export async function POST(request: Request) {
                 { status: 400 }
             )
         }
+
+        const requestedCategory = category || 'other'
+        const categoryRecord = await prisma.category.findUnique({
+            where: { slug: requestedCategory },
+            select: { id: true, isActive: true },
+        })
+
+        const categoryId = categoryRecord?.isActive
+            ? categoryRecord.id
+            : (await prisma.category.findUnique({
+                where: { slug: 'other' },
+                select: { id: true },
+            }))?.id ?? null
 
         const titleModeration = moderateText(title.trim())
         if (!titleModeration.ok) {
@@ -133,6 +174,7 @@ export async function POST(request: Request) {
                 imageWidth: imageWidth ?? null,
                 imageHeight: imageHeight ?? null,
                 boardId: boardId || null,
+                categoryId,
             },
         })
 

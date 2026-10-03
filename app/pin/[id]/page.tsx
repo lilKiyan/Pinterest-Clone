@@ -8,6 +8,7 @@ import Image from 'next/image'
 import dynamic from 'next/dynamic'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Spinner from '@/app/components/Spinner'
+import { getCategoryIcon } from '@/lib/categories'
 
 const SharePinModal = dynamic(() => import('@/app/components/SharePinModal'), { ssr: false })
 const PinCard = dynamic(() => import('@/app/components/PinCard'), {
@@ -68,6 +69,12 @@ type PinResponse = {
         totalSaves: number
         totalLikes: number
         isLikedByMe: boolean
+        category: {
+            slug: string
+            name: string
+            icon: string
+            color: string
+        } | null
         savedBoards: SavedBoard[]
         owner: {
             id: string
@@ -500,8 +507,52 @@ export default function PinDetailPage() {
                                 )}
                             </div>
 
-                            {/* عنوان و توضیحات */}
+                            {/* عنوان، دسته‌بندی و توضیحات */}
                             <div className="px-6 py-5">
+                                {/* 🏷️ دسته‌بندی — ابربرچسب بالای عنوان */}
+                                {pin.category && (
+                                    <Link
+                                        href={`/category/${pin.category.slug}`}
+                                        className="group/cat inline-flex items-center gap-2 mb-3 no-underline"
+                                    >
+                                        {/* آیکون دسته — چیپ کوچیک با پس‌زمینه رنگی */}
+                                        <span
+                                            className="w-6 h-6 rounded-lg flex items-center justify-center
+                                                transition-all duration-300
+                                                group-hover/cat:rotate-[-10deg] group-hover/cat:scale-110"
+                                            style={{ backgroundColor: `${pin.category.color}18` }}
+                                        >
+                                            {(() => {
+                                                const CatIcon = getCategoryIcon(pin.category.icon)
+                                                return (
+                                                    <CatIcon
+                                                        className="w-3.5 h-3.5"
+                                                        style={{ color: pin.category.color }}
+                                                    />
+                                                )
+                                            })()}
+                                        </span>
+
+                                        {/* اسم دسته — با رنگ هویتی خودش */}
+                                        <span
+                                            className="text-xs font-bold transition-colors duration-300
+                                                group-hover/cat:opacity-70"
+                                            style={{ color: pin.category.color }}
+                                        >
+                                            {pin.category.name}
+                                        </span>
+
+                                        {/* جداکننده نقطه */}
+                                        <span className="w-1 h-1 rounded-full bg-gray-300" />
+
+                                        {/* «همه» — با hover روشن می‌شود */}
+                                        <span className="text-xs text-gray-300
+                                            group-hover/cat:text-gray-500 transition-colors duration-300">
+                                            مشاهده همه
+                                        </span>
+                                    </Link>
+                                )}
+
                                 <h1 className="text-xl md:text-3xl font-extrabold text-gray-900 leading-snug mb-2.5">
                                     {pin.title}
                                 </h1>

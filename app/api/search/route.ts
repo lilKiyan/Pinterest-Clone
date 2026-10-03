@@ -26,6 +26,9 @@ export async function GET(request: Request) {
                 saves: {
                     include: { board: true },
                 },
+                category: {
+                    select: { slug: true, name: true, icon: true, color: true },
+                },
             },
         })
 
@@ -46,6 +49,14 @@ export async function GET(request: Request) {
                 userId: pin.userId,
                 isOwner: false,
                 isSavedByMe: userSaves.length > 0,
+                category: pin.category
+                    ? {
+                        slug: pin.category.slug,
+                        name: pin.category.name,
+                        icon: pin.category.icon,
+                        color: pin.category.color,
+                    }
+                    : null,
                 savedBoards: userSaves.map((s) => ({
                     boardId: s.boardId,
                     boardName: s.board?.name || null,

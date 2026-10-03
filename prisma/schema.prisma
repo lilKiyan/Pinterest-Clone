@@ -65,6 +65,9 @@ model Pin {
   notifications Notification[]
 
   sharedInMessages Message[]
+
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id])
 }
 
 model Like {
@@ -236,4 +239,19 @@ model UserRole {
 
   @@id([userId, roleId])
   @@map("user_roles")
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  name      String
+  icon      String   @default("🏷️")
+  color     String   @default("#ef4444")
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  pins Pin[]
+
+  @@map("categories")
 }

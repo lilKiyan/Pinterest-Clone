@@ -1,16 +1,20 @@
 "use client"
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
 import PinCard from './components/PinCard'
 import { FiAlertCircle, FiImage, FiCheckCircle } from 'react-icons/fi'
 import Spinner from './components/Spinner'
+import { CATEGORIES } from '@/lib/categories'
+import Link from 'next/link'         
+import { FiTag } from 'react-icons/fi' 
 
 const LIMIT = 12
 
 export default function Home() {
   const sentinelRef = useRef<HTMLDivElement | null>(null)
   const queryClient = useQueryClient()
+  const [activeCategory, setActiveCategory] = useState<string | null>(null)
 
   const {
     data,
@@ -21,9 +25,14 @@ export default function Home() {
     isError,
     error,
   } = useInfiniteQuery({
-    queryKey: ['pins'],
+    queryKey: ['pins', activeCategory],
     queryFn: async ({ pageParam = 1 }) => {
-      const res = await fetch(`/api/pins?page=${pageParam}&limit=${LIMIT}`)
+      const url = new URL(`/api/pins`, window.location.origin)
+      url.searchParams.set('page', String(pageParam))
+      url.searchParams.set('limit', String(LIMIT))
+      if (activeCategory) url.searchParams.set('category', activeCategory)
+
+      const res = await fetch(url.toString())
       if (!res.ok) throw new Error('خطا در دریافت پین‌ها')
       return res.json()
     },
@@ -31,10 +40,15 @@ export default function Home() {
       return lastPage.hasMore ? allPages.length + 1 : undefined
     },
     initialPageParam: 1,
-    staleTime: 0, // ✅ مهم برای Vercel: همیشه تازه باشه
+    staleTime: 0,
   })
 
   const pins = data?.pages.flatMap((page) => page.pins) ?? []
+
+  const handleCategoryChange = (slug: string | null) => {
+    setActiveCategory(slug)
+    queryClient.removeQueries({ queryKey: ['pins'] })
+  }
 
   // ── IntersectionObserver برای infinite scroll ──
   useEffect(() => {
@@ -65,7 +79,7 @@ export default function Home() {
   if (isLoading) {
     return (
       <main className="min-h-[60vh] flex items-center justify-center">
-        <Spinner size="lg" className='mt-35'/>
+        <Spinner size="lg" className='mt-35' />
       </main>
     )
   }
@@ -83,6 +97,55 @@ export default function Home() {
 
   return (
     <main className="p-4 md:p-6">
+      <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-6 pt-4 scrollbar-none md:px-0 px-1">
+        <button
+          onClick={() => handleCategoryChange(null)}
+          className={`shrink-0 px-4 py-2 rounded-full text-xs font-bold transition-all
+              cursor-pointer active:scale-95 ${activeCategory === null
+              ? 'bg-gray-900 text-white shadow-md'
+              : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:ring-gray-400'
+            }`}
+        >
+          همه
+        </button>
+
+        {CATEGORIES.map((cat) => {
+          const isActive = activeCategory === cat.slug
+          const Icon = cat.iconComponent
+          return (
+            <button
+              key={cat.slug}
+              onClick={() => handleCategoryChange(cat.slug)}
+              className={`shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-full
+                  text-xs font-bold transition-all
+                  cursor-pointer active:scale-95 hover:-translate-y-0.5 hover:shadow-md
+                  ${isActive
+                  ? 'text-white shadow-md'
+                  : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:ring-gray-400'
+                }`}
+              style={isActive ? { backgroundColor: cat.color } : undefined}
+            >
+              <Icon
+                className="w-3.5 h-3.5"
+                style={{ color: isActive ? '#ffffff' : cat.color }}
+              />
+              {cat.name}
+            </button>
+          )
+        })}
+        <Link
+          href="/categories"
+          className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-full
+              text-xs font-bold text-gray-900
+              bg-white ring-1 ring-gray-900
+              hover:bg-gray-900 hover:text-white
+              transition-all cursor-pointer active:scale-95"
+        >
+          <FiTag className="w-3.5 h-3.5" />
+          همه‌ی دسته‌ها
+        </Link>
+      </div>
+
       {pins.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <div className="w-16 h-16 rounded-2xl bg-gray-50 ring-1 ring-black/5 flex items-center justify-center mb-4">
@@ -93,6 +156,7 @@ export default function Home() {
           </p>
         </div>
       ) : (
+
         <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4 space-y-4">
           {pins.map((pin, index) => (
             <PinCard

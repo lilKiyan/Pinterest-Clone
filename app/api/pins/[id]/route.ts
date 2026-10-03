@@ -157,6 +157,9 @@ export async function GET(
                         board: true,
                     },
                 },
+                category: {                         
+                    select: { slug: true, name: true, icon: true, color: true },
+                },
                 likes: true,
                 comments: true,
             },
@@ -188,6 +191,7 @@ export async function GET(
             },
             isOwner: user ? pin.userId === user.id : false,
             isSavedByMe: userSaves.length > 0,
+            category: pin.category,
             savedBoards: userSaves.map((s) => ({
                 boardId: s.boardId,
                 boardName: s.board?.name || null,

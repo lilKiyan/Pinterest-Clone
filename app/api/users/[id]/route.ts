@@ -47,6 +47,9 @@ export async function GET(
                     reports: {
                         select: { reporterId: true },
                     },
+                    category: {
+                        select: { slug: true, name: true, icon: true, color: true },
+                    },
                 },
             }),
         ])
@@ -79,6 +82,14 @@ export async function GET(
                 userId: pin.userId,
                 isOwner: currentUser ? pin.userId === currentUser.id : false,
                 isSavedByMe: userSaves.length > 0,
+                category: pin.category
+                    ? {
+                        slug: pin.category.slug,
+                        name: pin.category.name,
+                        icon: pin.category.icon,
+                        color: pin.category.color,
+                    }
+                    : null,
                 isReportedByMe: currentUser
                     ? pin.reports.some((r) => r.reporterId === currentUser.id)
                     : false,

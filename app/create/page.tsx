@@ -4,8 +4,9 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { FiUpload, FiImage, FiType, FiAlignLeft, FiAlertCircle, FiX, FiFile, FiCheckCircle } from 'react-icons/fi'
+import { FiUpload, FiImage, FiType, FiAlignLeft, FiAlertCircle, FiX, FiFile, FiCheckCircle, FiTag } from 'react-icons/fi'
 import { compressImage } from '@/lib/imageCompress'
+import { CATEGORIES } from '@/lib/categories'
 
 type CreatePinInput = {
     title: string
@@ -13,6 +14,7 @@ type CreatePinInput = {
     file: File
     width: number
     height: number
+    category: string
 }
 
 export default function CreatePage() {
@@ -28,9 +30,10 @@ export default function CreatePage() {
     const [isPreparing, setIsPreparing] = useState(false)
     const [submitError, setSubmitError] = useState('')
     const [compressionInfo, setCompressionInfo] = useState<{ from: number; to: number } | null>(null)
+    const [category, setCategory] = useState('other')
 
     const createPinMutation = useMutation({
-        mutationFn: async ({ title, description, file, width, height }: CreatePinInput) => {
+        mutationFn: async ({ title, description, file, width, height, category }: CreatePinInput) => {
             // ۱. آپلود تصویر (از قبل فشرده شده)
             const formData = new FormData()
             formData.append('file', file)
@@ -47,7 +50,7 @@ export default function CreatePage() {
 
             const { imageUrl } = await uploadRes.json()
 
-            // ۲. ساخت پین — با ابعاد واقعی از فشرده‌ساز
+            // ۲. ساخت پین — با ابعاد واقعی از فشرده‌ساز + دسته‌بندی
             const pinRes = await fetch('/api/pins', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -57,6 +60,7 @@ export default function CreatePage() {
                     imageUrl,
                     imageWidth: width,
                     imageHeight: height,
+                    category,
                 }),
             })
 
@@ -78,12 +82,11 @@ export default function CreatePage() {
         const file = e.target.files?.[0]
         if (!file) return
 
-        e.target.value = ''   // امکان انتخاب دوباره‌ی همان فایل
+        e.target.value = ''
         setSubmitError('')
 
         setIsPreparing(true)
         try {
-            // ✨ فشرده‌سازی — خروجی سبک با ابعاد واقعی
             const { file: compressed, width, height, wasCompressed } = await compressImage(file)
 
             if (previewUrl) URL.revokeObjectURL(previewUrl)
@@ -117,6 +120,7 @@ export default function CreatePage() {
             file: selectedFile,
             width: dimensions.width,
             height: dimensions.height,
+            category,
         })
     }
 
@@ -148,7 +152,7 @@ export default function CreatePage() {
                         ساخت پین جدید
                     </h1>
                     <p className="text-[10px] md:text-sm text-gray-500 mt-1">
-                        یه تصویر انتخاب کن و یه عنوان جذاب براش بذار تا منتشر بشه
+                        یه تصویر انتخاب کن، دسته‌بندی کن و منتشرش کن
                     </p>
                 </div>
             </div>
@@ -183,7 +187,7 @@ export default function CreatePage() {
 
                         <div className="p-5 md:p-8">
                             <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.15fr] gap-8">
-                                {/* ═══ آپلود تصویر ═══ */}
+                                {/* ═══ ۱. آپلود تصویر ═══ */}
                                 <div>
                                     <div className="flex items-center justify-between mb-2.5">
                                         <label className="flex items-center gap-1.5 text-sm font-semibold text-gray-700">
@@ -199,7 +203,6 @@ export default function CreatePage() {
                                         )}
                                     </div>
 
-                                    {/* ✨ پیش‌نمایش: نسبت واقعی عکس، بدون لایه تیره */}
                                     <label className="group relative block w-full rounded-2xl cursor-pointer overflow-hidden bg-gray-50 border-2 border-dashed transition-all duration-300 border-gray-200 hover:border-red-300 hover:shadow-lg hover:shadow-red-100/40">
                                         {previewUrl ? (
                                             <>
@@ -209,7 +212,6 @@ export default function CreatePage() {
                                                     className="w-full h-auto max-h-[65vh] object-contain"
                                                 />
 
-                                                {/* دکمه تغییر — گوشه، بدون پوشاندن عکس */}
                                                 <span className="absolute top-3 left-3 flex items-center gap-1.5 text-white text-xs font-bold
                                                     bg-black/55 hover:bg-black/70 backdrop-blur-md px-3.5 py-2 rounded-full
                                                     ring-1 ring-white/30 shadow-lg transition-all duration-200
@@ -218,7 +220,6 @@ export default function CreatePage() {
                                                     تغییر تصویر
                                                 </span>
 
-                                                {/* لودینگ حین فشرده‌سازی تصویر جدید */}
                                                 {isPreparing && (
                                                     <div className="absolute inset-0 bg-white/70 backdrop-blur-sm flex items-center justify-center">
                                                         <span className="w-6 h-6 border-[3px] border-red-100 border-t-red-500 rounded-full animate-spin" />
@@ -289,8 +290,9 @@ export default function CreatePage() {
                                     )}
                                 </div>
 
-                                {/* ═══ اطلاعات پین ═══ */}
+                                {/* ═══ ستون اطلاعات: عنوان + توضیحات ═══ */}
                                 <div className="flex flex-col gap-6">
+                                    {/* ── ۲. عنوان پین ── */}
                                     <div>
                                         <label className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 mb-2.5">
                                             <span className="w-6 h-6 rounded-lg bg-red-50 text-red-600 flex items-center justify-center text-[11px] font-extrabold">۲</span>
@@ -306,10 +308,11 @@ export default function CreatePage() {
                                         />
                                     </div>
 
+                                    {/* ── ۴. توضیحات ── */}
                                     <div className="flex-1 flex flex-col">
                                         <div className="flex items-center justify-between mb-2.5">
                                             <label className="flex items-center gap-1.5 text-sm font-semibold text-gray-700">
-                                                <span className="w-6 h-6 rounded-lg bg-red-50 text-red-600 flex items-center justify-center text-[11px] font-extrabold">۳</span>
+                                                <span className="w-6 h-6 rounded-lg bg-red-50 text-red-600 flex items-center justify-center text-[11px] font-extrabold">۴</span>
                                                 <FiAlignLeft className="w-4 h-4 text-gray-400" />
                                                 توضیحات
                                                 <span className="text-gray-400 font-normal">(اختیاری)</span>
@@ -330,12 +333,55 @@ export default function CreatePage() {
                                         />
                                     </div>
                                 </div>
+
+                                {/* ═══ ۳. دسته‌بندی — تمام‌عرض، برادر مستقل ═══ */}
+                                <div className="lg:col-span-2">
+                                    <label className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 mb-2.5">
+                                        <span className="w-6 h-6 rounded-lg bg-red-50 text-red-600 flex items-center justify-center text-[11px] font-extrabold">۳</span>
+                                        <FiTag className="w-4 h-4 text-gray-400" />
+                                        دسته‌بندی
+                                    </label>
+
+                                    <div className="grid grid-cols-4 md:grid-cols-8 gap-1.5">
+                                        {CATEGORIES.map((cat) => {
+                                            const isActive = category === cat.slug
+                                            const Icon = cat.iconComponent
+
+                                            return (
+                                                <button
+                                                    key={cat.slug}
+                                                    type="button"
+                                                    onClick={() => setCategory(cat.slug)}
+                                                    className={`flex flex-col items-center justify-center gap-1.5 py-3 px-1 rounded-xl
+                                                        transition-all duration-200 cursor-pointer text-center
+                                                        ${isActive
+                                                            ? 'shadow-md'
+                                                            : 'ring-1 ring-gray-100 bg-gray-50 hover:bg-gray-100 hover:ring-gray-200'
+                                                        }`}
+                                                    style={isActive ? {
+                                                        backgroundColor: `${cat.color}14`,
+                                                        boxShadow: `0 0 0 2px ${cat.color}`,
+                                                    } : undefined}
+                                                >
+                                                    <Icon
+                                                        className="w-5 h-5"
+                                                        style={{ color: isActive ? cat.color : undefined }}
+                                                    />
+                                                    <span className={`text-[10px] font-bold leading-tight
+                                                        ${isActive ? 'text-gray-900' : 'text-gray-500'}`}>
+                                                        {cat.name}
+                                                    </span>
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
 
                     {/* ── نوار دکمه‌ها ── */}
-                    <div className="sticky bottom-4 z-30 mb-15 md:mb-0">
+                    <div className="sticky bottom-4 z-30 mb-24 md:mb-0">
                         <div className="bg-white/80 backdrop-blur-xl rounded-2xl ring-1 ring-black/5 shadow-2xl shadow-gray-300/40 p-3 flex items-center gap-3">
                             <button
                                 type="submit"

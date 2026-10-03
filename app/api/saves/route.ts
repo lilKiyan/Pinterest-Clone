@@ -52,7 +52,6 @@ export async function POST(request: Request) {
             )
         }
 
-        // بررسی اینکه قبلاً این پین در این برد ذخیره نشده باشد
         const existingSave = await prisma.save.findFirst({
             where: {
                 userId: user.id,
@@ -116,8 +115,14 @@ export async function GET() {
         const saves = await prisma.save.findMany({
             where: { userId: user.id },
             include: {
-                pin: true,
                 board: true,
+                pin: {
+                    include: {
+                        category: {                                   // ✅ از روی pin
+                            select: { slug: true, name: true, icon: true, color: true },
+                        },
+                    },
+                },
             },
             orderBy: { createdAt: 'desc' },
         })
@@ -133,12 +138,20 @@ export async function GET() {
                     title: save.pin.title,
                     description: save.pin.description,
                     imageUrl: save.pin.imageUrl,
-                    imageWidth: save.pin.imageWidth,      // ✅ اضافه شد
+                    imageWidth: save.pin.imageWidth,
                     imageHeight: save.pin.imageHeight,
                     createdAt: save.pin.createdAt,
                     updatedAt: save.pin.updatedAt,
                     userId: save.pin.userId,
                     isOwner: save.pin.userId === user.id,
+                    category: save.pin.category
+                        ? {
+                            slug: save.pin.category.slug,
+                            name: save.pin.category.name,
+                            icon: save.pin.category.icon,
+                            color: save.pin.category.color,
+                        }
+                        : null,
                     isSavedByMe: true,
                     savedBoards: [],
                 })

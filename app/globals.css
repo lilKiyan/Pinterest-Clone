@@ -129,3 +129,7 @@
     animation: none !important;
   }
 }
+
+.chip-hover:hover {
+    box-shadow: 0 0 0 1.5px var(--chip-color);
+}

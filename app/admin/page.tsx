@@ -6,9 +6,12 @@ import Image from 'next/image'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Spinner from '@/app/components/Spinner'
 import dynamic from 'next/dynamic'
+import AdminCategoryModal from '../components/AdminCategoryModal'
+import { getCategoryIcon } from '@/lib/categories'   // ✅ جدید
 import {
-    FiShield, FiArrowRight, FiUsers, FiFlag, FiTrash2, FiCheckCircle, FiImage, FiHeart, FiMessageCircle, FiUserX, FiEdit2,
-    FiLock, FiX, FiSearch,
+    FiShield, FiArrowRight, FiUsers, FiFlag, FiTrash2, FiCheckCircle,
+    FiSearch, FiLock, FiX, FiTag, FiImage, FiHeart, FiMessageCircle,
+    FiUserX, FiEdit2, FiPlus,
 } from 'react-icons/fi'
 
 const EditUserModal = dynamic(() => import('@/app/components/EditUserModal'), { ssr: false })
@@ -50,7 +53,18 @@ type AdminUserRow = {
     _count: { pins: number; followers: number }
 }
 
-type Tab = 'reports' | 'users'
+type CategoryRow = {
+    id: string
+    slug: string
+    name: string
+    icon: string
+    color: string
+    sortOrder: number
+    isActive: boolean
+    _count: { pins: number }
+}
+
+type Tab = 'reports' | 'users' | 'categories'
 
 const REASON_LABELS: Record<string, string> = {
     spam: 'اسپم یا تبلیغات',
@@ -61,7 +75,7 @@ const REASON_LABELS: Record<string, string> = {
     other: 'سایر',
 }
 
-// ✅ SearchInput بیرون از کامپوننت — نه داخل (باگ remount/hydration)
+// ✅ SearchInput — ماژول‌لِوِل (خارج از کامپوننت)
 function SearchInput({
     value,
     onChange,
@@ -105,13 +119,16 @@ export default function AdminPage() {
     const [deletingUser, setDeletingUser] = useState<AdminUserRow | null>(null)
     const [reportSearch, setReportSearch] = useState('')
     const [userSearch, setUserSearch] = useState('')
+    const [editingCategory, setEditingCategory] = useState<CategoryRow | null>(null)
+    const [creatingCategory, setCreatingCategory] = useState(false)
+    const [categorySearch, setCategorySearch] = useState<string>('')
 
     const showToast = (msg: string) => {
         setToast(msg)
         setTimeout(() => setToast(''), 2500)
     }
 
-    // ── Query: آمار (+ گارد دسترسی: ۴۰۳ = ادمین نیستی) ──
+    // ── Query: آمار (+ گارد دسترسی) ──
     const {
         data: statsData,
         isLoading: loadingStats,
@@ -152,6 +169,20 @@ export default function AdminPage() {
             return res.json()
         },
         enabled: !!statsData && tab === 'users',
+    })
+
+    // ✅ Query: دسته‌ها — قبل از useMemo ای که ازش استفاده می‌کند!
+    const {
+        data: categoriesData,
+        isLoading: loadingCategories,
+    } = useQuery<{ categories: CategoryRow[] }>({
+        queryKey: ['admin-categories'],
+        queryFn: async () => {
+            const res = await fetch('/api/admin/categories')
+            if (!res.ok) throw new Error('خطا')
+            return res.json()
+        },
+        enabled: !!statsData && tab === 'categories',
     })
 
     // ── Mutation: رسیدگی به گزارش ──
@@ -198,6 +229,49 @@ export default function AdminPage() {
         onError: (err: Error) => showToast(err.message),
     })
 
+    // ── Mutation: ذخیره دسته (ساخت/ویرایش) ──
+    const saveCategoryMutation = useMutation({
+        mutationFn: async (body: Record<string, unknown>) => {
+            const isEdit = !!body.id
+            const res = await fetch(
+                isEdit ? `/api/admin/categories/${body.id}` : '/api/admin/categories',
+                {
+                    method: isEdit ? 'PATCH' : 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                }
+            )
+            if (!res.ok) {
+                const data = await res.json()
+                throw new Error(data.error || 'خطا')
+            }
+            return res.json()
+        },
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: ['admin-categories'] })
+            queryClient.invalidateQueries({ queryKey: ['admin-stats'] })
+            showToast(data.message)
+        },
+        onError: (err: Error) => showToast(err.message),
+    })
+
+    // ── Mutation: حذف دسته ──
+    const deleteCategoryMutation = useMutation({
+        mutationFn: async (id: string) => {
+            const res = await fetch(`/api/admin/categories/${id}`, { method: 'DELETE' })
+            if (!res.ok) {
+                const data = await res.json()
+                throw new Error(data.error || 'خطا')
+            }
+            return res.json()
+        },
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: ['admin-categories'] })
+            showToast(data.message)
+        },
+        onError: (err: Error) => showToast(err.message),
+    })
+
     const handleReportAction = (reportId: string, action: 'delete-pin' | 'dismiss') => {
         setActionLoading(reportId)
         reportActionMutation.mutate(
@@ -214,6 +288,7 @@ export default function AdminPage() {
         )
     }
 
+    // ✅ فیلترها — بعد از کوئری‌ها (رفع ارور used before declaration)
     const filteredReports = useMemo(() => {
         const reports = reportsData?.reports ?? []
         const q = reportSearch.trim().toLowerCase()
@@ -242,6 +317,17 @@ export default function AdminPage() {
         )
     }, [usersData, userSearch])
 
+    const filteredCategories = useMemo(() => {
+        const cats = categoriesData?.categories ?? []
+        const q = categorySearch.trim().toLowerCase()
+        if (!q) return cats
+        return cats.filter(
+            (c) =>
+                c.name.toLowerCase().includes(q) ||
+                c.slug.toLowerCase().includes(q)
+        )
+    }, [categoriesData, categorySearch])
+
     // ✅ تفکیک «جستجوی بی‌نتیجه» از «واقعاً خالی»
     const reportsSearchEmpty =
         !!reportsData && reportSearch.trim() !== '' && filteredReports.length === 0
@@ -269,7 +355,7 @@ export default function AdminPage() {
                                 hover:shadow-lg hover:shadow-gray-900/20
                                 active:scale-90"
                         >
-                            <FiArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:-translate-x-0.5" />
+                            <FiArrowRight className="w-4 h-4 transition-transform duration-300" />
                         </Link>
                         <div className="relative">
                             <div className="w-11 h-11 rounded-2xl bg-gray-900 flex items-center justify-center">
@@ -398,6 +484,16 @@ export default function AdminPage() {
                                 <FiUsers className="w-3.5 h-3.5" />
                                 کاربران
                             </button>
+                            <button
+                                onClick={() => setTab('categories')}
+                                className={`flex items-center gap-2 px-5 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${tab === 'categories'
+                                    ? 'bg-white shadow-sm text-red-600'
+                                    : 'text-gray-500 hover:text-gray-800'
+                                    }`}
+                            >
+                                <FiTag className="w-3.5 h-3.5" />
+                                دسته‌ها
+                            </button>
                         </div>
 
                         {/* ═══ تب گزارش‌ها ═══ */}
@@ -414,7 +510,6 @@ export default function AdminPage() {
                                     </div>
                                 ) : filteredReports.length === 0 ? (
                                     reportsSearchEmpty ? (
-                                        /* جستجو بی‌نتیجه */
                                         <div className="py-16 text-center">
                                             <FiSearch className="w-7 h-7 text-gray-200 mx-auto mb-3" />
                                             <p className="text-sm text-gray-400">
@@ -422,7 +517,6 @@ export default function AdminPage() {
                                             </p>
                                         </div>
                                     ) : (
-                                        /* واقعاً هیچ گزارشی نیست */
                                         <div className="py-20 text-center">
                                             <div className="relative w-20 h-20 mx-auto mb-5">
                                                 <span className="absolute inset-0 rounded-full border border-green-200
@@ -448,7 +542,6 @@ export default function AdminPage() {
                                                 key={report.id}
                                                 className="bg-white rounded-2xl ring-1 ring-gray-100 hover:ring-red-200/60 p-4 transition-all duration-300"
                                             >
-                                                {/* ردیف ۱: پین گزارش‌شده */}
                                                 <div className="flex items-center gap-3">
                                                     <div className="relative w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-gray-100 ring-1 ring-black/5">
                                                         <Image
@@ -480,14 +573,12 @@ export default function AdminPage() {
                                                     </span>
                                                 </div>
 
-                                                {/* ردیف ۲: توضیح گزارش‌دهنده */}
                                                 {report.description && (
                                                     <p className="mt-2.5 mr-[60px] text-xs text-gray-600 bg-gray-50 rounded-xl px-3 py-2 leading-relaxed">
                                                         «{report.description}»
                                                     </p>
                                                 )}
 
-                                                {/* ردیف ۳: متا + دکمه‌ها */}
                                                 <div className="mt-3 mr-[60px] flex items-center justify-between gap-2 flex-wrap">
                                                     <p className="text-[11px] text-gray-400">
                                                         گزارش از: <span className="font-semibold text-gray-500">{report.reporter.name}</span>
@@ -560,7 +651,6 @@ export default function AdminPage() {
                                                     : 'ring-gray-100 hover:ring-gray-200'
                                                     }`}
                                             >
-                                                {/* آواتار */}
                                                 <div className="relative w-11 h-11 rounded-full overflow-hidden shrink-0 bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center text-white font-bold ring-2 ring-white shadow-md">
                                                     {user.avatar ? (
                                                         <Image
@@ -575,7 +665,6 @@ export default function AdminPage() {
                                                     )}
                                                 </div>
 
-                                                {/* اطلاعات */}
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center gap-2">
                                                         <p className={`font-bold text-sm truncate ${user.banned ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
@@ -597,7 +686,6 @@ export default function AdminPage() {
                                                 </div>
 
                                                 <div className="shrink-0 flex items-center gap-1.5">
-                                                    {/* ویرایش */}
                                                     <button
                                                         onClick={() => setEditingUser(user)}
                                                         disabled={isLoading}
@@ -607,7 +695,6 @@ export default function AdminPage() {
                                                         <FiEdit2 className="w-4 h-4" />
                                                     </button>
 
-                                                    {/* حذف */}
                                                     <button
                                                         onClick={() => setDeletingUser(user)}
                                                         disabled={isLoading}
@@ -617,7 +704,6 @@ export default function AdminPage() {
                                                         <FiTrash2 className="w-4 h-4" />
                                                     </button>
 
-                                                    {/* ban/unban */}
                                                     <button
                                                         onClick={() => handleBan(user.id, !user.banned)}
                                                         disabled={isLoading}
@@ -645,19 +731,152 @@ export default function AdminPage() {
                                 )}
                             </div>
                         )}
+
+                        {/* ═══ تب دسته‌بندی‌ها ═══ */}
+                        {tab === 'categories' && (
+                            <div>
+                                {/* نوار بالایی: جستجو + دکمه ساخت */}
+                                <div className="flex items-center gap-2.5 mb-4">
+                                    <div className="relative flex-1 min-w-0">
+                                        <FiSearch className="absolute right-3.5 top-1/2 -translate-y-1/2
+                                            text-gray-300 w-4 h-4 pointer-events-none" />
+                                        <input
+                                            type="text"
+                                            value={categorySearch}
+                                            onChange={(e) => setCategorySearch(e.target.value)}
+                                            placeholder="جستجوی دسته‌بندی..."
+                                            className="w-full bg-white ring-1 ring-gray-200/80 rounded-full
+                                                pr-10 pl-4 py-2.5 text-sm text-gray-800 placeholder-gray-300
+                                                focus:outline-none focus:ring-2 focus:ring-red-300/60
+                                                transition-all"
+                                        />
+                                    </div>
+
+                                    <button
+                                        onClick={() => setCreatingCategory(true)}
+                                        aria-label="دسته‌بندی جدید"
+                                        className="shrink-0 w-10 h-10 rounded-full
+                                            bg-gray-900 text-white flex items-center justify-center
+                                            shadow-md hover:bg-black hover:shadow-lg hover:-translate-y-0.5
+                                            active:scale-90 transition-all cursor-pointer"
+                                    >
+                                        <FiPlus className="w-4 h-4" />
+                                    </button>
+                                </div>
+
+                                {/* گرید دسته‌ها */}
+                                {loadingCategories ? (
+                                    <div className="flex justify-center py-16">
+                                        <Spinner size="md" />
+                                    </div>
+                                ) : filteredCategories.length === 0 ? (
+                                    <div className="py-16 text-center">
+                                        <FiTag className="w-7 h-7 text-gray-200 mx-auto mb-3" />
+                                        <p className="text-sm text-gray-400">
+                                            {categorySearch
+                                                ? 'دسته‌بندی‌ای پیدا نشد'
+                                                : 'هنوز دسته‌بندی‌ای ساخته نشده'}
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                        {filteredCategories.map((cat) => {
+                                            const isBusy = actionLoading === cat.id
+                                            const Icon = getCategoryIcon(cat.icon)
+                                            const isProtected = cat.slug === 'other'
+
+                                            return (
+                                                <div
+                                                    key={cat.id}
+                                                    className={`group/cat rounded-2xl p-4 transition-all duration-300
+                                                        ${!cat.isActive
+                                                            ? 'bg-gray-50 ring-1 ring-gray-100 opacity-70'
+                                                            : 'bg-white ring-1 ring-gray-100 hover:ring-gray-200 hover:shadow-sm'
+                                                        }`}
+                                                >
+                                                    <div className="flex items-center gap-3.5">
+                                                        <span
+                                                            className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0
+                                                                transition-all duration-300 group-hover/cat:scale-110"
+                                                            style={{ backgroundColor: `${cat.color}18` }}
+                                                        >
+                                                            <Icon
+                                                                className="w-5 h-5"
+                                                                style={{ color: cat.color }}
+                                                            />
+                                                        </span>
+
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-center gap-2 flex-wrap">
+                                                                <p className="font-bold text-xs md:text-sm text-gray-900 truncate">
+                                                                    {cat.name}
+                                                                </p>
+                                                                {!cat.isActive && (
+                                                                    <span className="text-[9px] font-bold bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded-md">
+                                                                        غیرفعال
+                                                                    </span>
+                                                                )}
+                                                                {isProtected && (
+                                                                    <span className="shrink-0 text-[9px] font-bold bg-blue-50 text-blue-500 px-1.5 py-0.5 rounded-md">
+                                                                        پایه
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <p className="text-[11px] text-gray-400 truncate mt-0.5 text-right" dir="ltr">
+                                                                /{cat.slug}
+                                                            </p>
+                                                            <p className="text-[11px] text-gray-400 mt-0.5">
+                                                                <span className="font-semibold text-gray-500 tabular-nums">
+                                                                    {cat._count.pins.toLocaleString('fa-IR')}
+                                                                </span>{' '}
+                                                                پین
+                                                            </p>
+                                                        </div>
+
+                                                        <div className="shrink-0 flex items-center gap-0.5">
+                                                            <button
+                                                                onClick={() => setEditingCategory(cat)}
+                                                                disabled={isBusy}
+                                                                title="ویرایش"
+                                                                className="w-8 h-8 rounded-lg flex items-center justify-center
+                                                                    text-gray-300 hover:text-gray-900 hover:bg-gray-100
+                                                                    transition-all cursor-pointer active:scale-90 disabled:opacity-40"
+                                                            >
+                                                                <FiEdit2 className="w-4 h-4" />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => deleteCategoryMutation.mutate(cat.id)}
+                                                                disabled={isBusy || isProtected}
+                                                                title={isProtected ? 'دسته پایه قابل حذف نیست' : 'حذف'}
+                                                                className="w-8 h-8 rounded-lg flex items-center justify-center
+                                                                    text-gray-300 hover:text-red-600 hover:bg-red-50
+                                                                    transition-all cursor-pointer active:scale-90
+                                                                    disabled:opacity-30 disabled:cursor-not-allowed"
+                                                            >
+                                                                <FiTrash2 className="w-4 h-4" />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </>
                 )}
             </div>
 
             {/* ═══ توست ═══ */}
             {toast && (
-                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] bg-white shadow-2xl border border-gray-100 rounded-2xl px-6 py-4 flex items-center gap-3 animate-[fadeInUp_0.3s_ease-out]">
-                    <FiCheckCircle className="text-green-500 text-xl" />
-                    <span className="text-gray-800 font-medium text-sm">{toast}</span>
+                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] bg-gray-900 text-white text-sm font-medium px-5 py-3 rounded-full shadow-2xl flex items-center gap-2.5 animate-[fadeInUp_0.3s_ease-out]">
+                    <FiCheckCircle className="w-4 h-4 text-green-400" />
+                    {toast}
                 </div>
             )}
 
-            {/* ═══ مودال ویرایش کاربر ═══ */}
+            {/* ═══ مودال‌ها ═══ */}
             {editingUser && (
                 <EditUserModal
                     userId={editingUser.id}
@@ -672,7 +891,6 @@ export default function AdminPage() {
                 />
             )}
 
-            {/* ═══ مودال حذف کاربر ═══ */}
             {deletingUser && (
                 <DeleteUserModal
                     userId={deletingUser.id}
@@ -687,7 +905,28 @@ export default function AdminPage() {
                 />
             )}
 
-            {/* ✅ style داخل ریشه — بدون duplicate */}
+            {creatingCategory && (
+                <AdminCategoryModal
+                    category={null}
+                    onClose={() => setCreatingCategory(false)}
+                    onSaved={(message) => {
+                        showToast(message)
+                        queryClient.invalidateQueries({ queryKey: ['admin-categories'] })
+                    }}
+                />
+            )}
+
+            {editingCategory && (
+                <AdminCategoryModal
+                    category={editingCategory}
+                    onClose={() => setEditingCategory(null)}
+                    onSaved={(message) => {
+                        showToast(message)
+                        queryClient.invalidateQueries({ queryKey: ['admin-categories'] })
+                    }}
+                />
+            )}
+
             <style>{`
                 @keyframes fadeInUp {
                     from { opacity: 0; transform: translateY(10px); }
